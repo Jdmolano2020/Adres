@@ -6,6 +6,11 @@ import os
 output_folder = "archivos_terceros"
 os.makedirs(output_folder, exist_ok=True)
 
+def ordenar_numeros(celda):
+    numeros = celda.split('-')  # Separar los valores
+    numeros_ordenados = sorted(numeros, key=int)  # Ordenarlos como números
+    return '-'.join(numeros_ordenados)  # Volver a unirlos
+
 
 # Función genérica para comparar listas en cualquier par de columnas
 def comparar_listas(row, col_id_pago, col_concepto_pago):
@@ -40,11 +45,14 @@ file_path = 'TerceroBusca.xlsx'
 df_tercerosb = pd.read_excel(file_path, dtype={
     'NumeroDocumento': str, 'ConceptoPagoX': str,})
 
+# Aplicar la función a la columna col2
+df_tercerosb['ConceptoPagoX'] = df_tercerosb['ConceptoPagoX'].apply(ordenar_numeros)
+
 
 df_tercerose = df_tercerosparal.merge(df_tercerosb,
                                       left_on='ID PROVEEDOR',
                                       right_on='NumeroDocumento',
-                                      how='inner')
+                                      how='left')
 
 df_tercerose.drop(columns=['NumeroDocumento'],
                   inplace=True)
@@ -61,6 +69,9 @@ df_tercerose[['ConceptoPagoE', 'ConceptoPagoN']] = df_tercerose.apply(
 df_filtradon = df_tercerose[df_tercerose['ConceptoPagoN'].notna() & (df_tercerose['ConceptoPagoN'] != '')]
 
 df_filtradoe = df_tercerose[df_tercerose['ConceptoPagoE'].notna() & (df_tercerose['ConceptoPagoE'] != '')]
+df_filtradoe['ConceptoPagoT'] = df_filtradoe.groupby('ID PROVEEDOR')['ConceptoPagoE'].transform(lambda x: '-'.join(x))
+df_filtradoe['ConceptoPagoE']=df_filtradoe['ConceptoPagoT'].apply(ordenar_numeros)
+#df_filtradoe.drop ('ConceptoPagoT', axis = 1)
 df_iguales = df_filtradoe[df_filtradoe['ConceptoPagoX'] == df_filtradoe['ConceptoPagoE']]
 df_filtradon = df_filtradon[~df_filtradon['ID PROVEEDOR'].isin(df_iguales['ID PROVEEDOR'])]
 
