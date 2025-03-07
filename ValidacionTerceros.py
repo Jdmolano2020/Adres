@@ -1,15 +1,38 @@
 import pandas as pd
-
 import os
 
 # Crear carpeta para guardar los archivos exportados
 output_folder = "archivos_terceros"
 os.makedirs(output_folder, exist_ok=True)
 
-def ordenar_numeros(celda):
-    numeros = celda.split('-')  # Separar los valores
-    numeros_ordenados = sorted(numeros, key=int)  # Ordenarlos como números
-    return '-'.join(numeros_ordenados)  # Volver a unirlos
+
+def agregar_informe(df, nombre_archivo,columna, df_informe):
+    
+    if columna in df.columns:
+        num_registros = len(df)
+        valores_unicos = df[columna].unique()
+        cantidad_valores_unicos = len(valores_unicos)
+        nueva_fila = {
+            'archivo': nombre_archivo,
+            'Cantidad de registros': num_registros,
+            'Cantidad de valores únicos': cantidad_valores_unicos
+        }
+    else:
+        nueva_fila = {
+            'archivo': nombre_archivo,
+            'Cantidad de registros': len(df),
+            'Cantidad de valores únicos': 0
+        }
+    
+    df_informe = pd.concat([df_informe, pd.DataFrame([nueva_fila])], ignore_index=True)
+    
+    return df_informe
+
+def ordenar_numeros(conceptos):
+    conceptos_unicos = set()
+    for concepto in conceptos.split('-'): # Separar los valores
+        conceptos_unicos.add(concepto)
+    return '-'.join(sorted(conceptos_unicos)) # Ordenarlos como números
 
 
 # Función genérica para comparar listas en cualquier par de columnas
@@ -31,6 +54,9 @@ def comparar_listas(row, col_id_pago, col_concepto_pago):
         'ConceptoPagoN': '-'.join(concepto_no_existente) if concepto_no_existente else ''
     })
 
+df_informe = pd.DataFrame(columns=['archivo', 'Cantidad de registros', 'Cantidad de valores únicos'])
+
+
 
 file_path = 'OCI_TERCEROS.xlsx'
 df_terceros = pd.read_excel(file_path, dtype={
@@ -47,6 +73,7 @@ df_tercerosb = pd.read_excel(file_path, dtype={
 
 # Aplicar la función a la columna col2
 df_tercerosb['ConceptoPagoX'] = df_tercerosb['ConceptoPagoX'].apply(ordenar_numeros)
+
 
 
 df_tercerose = df_tercerosparal.merge(df_tercerosb,
@@ -69,8 +96,10 @@ df_tercerose[['ConceptoPagoE', 'ConceptoPagoN']] = df_tercerose.apply(
 df_filtradon = df_tercerose[df_tercerose['ConceptoPagoN'].notna() & (df_tercerose['ConceptoPagoN'] != '')]
 
 df_filtradoe = df_tercerose[df_tercerose['ConceptoPagoE'].notna() & (df_tercerose['ConceptoPagoE'] != '')]
-df_filtradoe['ConceptoPagoT'] = df_filtradoe.groupby('ID PROVEEDOR')['ConceptoPagoE'].transform(lambda x: '-'.join(x))
-df_filtradoe['ConceptoPagoE']=df_filtradoe['ConceptoPagoT'].apply(ordenar_numeros)
+df_filtradoe['ConceptoPagoE'] = df_filtradoe.groupby('ID PROVEEDOR')['ConceptoPagoE'].transform(lambda x: '-'.join(sorted(set(x))))
+#df_filtradoe['ConceptoPagoE']=df_filtradoe['ConceptoPagoT'].apply(ordenar_numeros)  # columna innecesarea
+
+df_filtradoe.to_excel("df_filtradoe.xlsx") 
 #df_filtradoe.drop ('ConceptoPagoT', axis = 1)
 df_iguales = df_filtradoe[df_filtradoe['ConceptoPagoX'] == df_filtradoe['ConceptoPagoE']]
 df_filtradon = df_filtradon[~df_filtradon['ID PROVEEDOR'].isin(df_iguales['ID PROVEEDOR'])]
@@ -84,6 +113,8 @@ for concepto in df_exploded['ConceptoPagoN'].unique():
 
     # Crear nombre de archivo seguro
     nombre_archivo = f"{output_folder}/terceros_{concepto.replace(' ', '_').replace('/', '_')}.csv"
+    # Generar el informe y añadir las filas al DataFrame de informe inicial
+    df_informe = agregar_informe(df_subset, f"terceros_{concepto.replace(' ', '_').replace('/', '_')}",'ID PROVEEDOR' , df_informe)
     
     # Exportar a CSV
     df_subset.to_csv(nombre_archivo, index=False, encoding='utf-8-sig', quoting=1)
@@ -93,7 +124,7 @@ print("Exportación Terceros Existentes completada.")
 nombre_archivo = f"{output_folder}/TercerosExistentes.csv"
 df_filtradoe.astype(str).to_csv(nombre_archivo,
                                 index=False, encoding="utf-8", quoting=1)
-
+df_informe = agregar_informe(df_filtradoe, 'TercerosExistentes','ID PROVEEDOR' , df_informe)
 
 df_tercerosne = df_tercerosb.merge(df_tercerosparal,
                                    left_on='NumeroDocumento',
@@ -117,6 +148,8 @@ nombre_archivo = f"{output_folder}/TercerosCargar.csv"
 df_tercerosc.astype(str).to_csv(nombre_archivo,
                                 index=False, encoding="utf-8", quoting=1)
 
+df_informe = agregar_informe(df_tercerosc, 'TercerosCargar','ID PROVEEDOR' , df_informe)
+
 df_tercerosne = df_tercerosne.merge(df_terceros,
                                     left_on='NumeroDocumento',
                                     right_on='NumeroDocumento',
@@ -130,3 +163,6 @@ df_tercerosne = df_tercerosne[df_tercerosb.columns]
 nombre_archivo = f"{output_folder}/TercerosArmar.csv"
 df_tercerosne.astype(str).to_csv(nombre_archivo,
                                  index=False, encoding="utf-8", quoting=1)
+df_informe = agregar_informe(df_tercerosne, 'TercerosArmar','ID PROVEEDOR' , df_informe)
+
+print(df_informe)
