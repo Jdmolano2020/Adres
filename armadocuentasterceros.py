@@ -4,6 +4,15 @@ file_path = 'bancos.xlsx'
 df_bancos = pd.read_excel(file_path, dtype={
     'CodigoBanco': str, 'NombreBanco': str, }, engine='openpyxl')
 
+file_path = 'CuentasUGG.xlsx'
+df_Cuentasugg = pd.read_excel(file_path,  dtype={
+    'Identificación del tercero (NIT)': str }, engine='openpyxl')
+
+df_Cuentasugg = df_Cuentasugg.rename(
+    columns={'Identificación del tercero (NIT)': 'NumeroDocumento',
+             'N° de cuenta bancaria': 'NumeroCuenta', })
+
+
 df_bank_acctscuenta = df_bank_accts.copy()
 df_bank_acctscuenta = df_bank_acctscuenta.rename(
     columns={'*Payee Identifier': 'NumeroDocumento',
@@ -48,7 +57,7 @@ df_bank_acctscuenta['NombreBanco'] = df_bank_acctscuenta['NombreBanco'].replace(
 
 cambios_tipo = {
     'CURRENT': '0',
-    'SAVINGS': '1',}
+    'SAVINGS': '1', }
 
 df_bank_acctscuenta['TipoCuenta'] = df_bank_acctscuenta['TipoCuenta'].replace(
     cambios_tipo)
@@ -58,8 +67,17 @@ df_mergedcuentas = df_bank_acctscuenta.merge(
 
 df_mergedcuentas = df_mergedcuentas.dropna(subset=['CodigoBanco'])
 
+# ['NumeroDocumento', 'NumeroCuenta', 'UnidadNegocio']
+df_mergedcuentas = df_mergedcuentas.merge(
+    df_Cuentasugg,
+    on=['NumeroDocumento', 'NumeroCuenta'], how='left')
+
+df_mergedcuentas['UnidadNegocio'] = df_mergedcuentas['UnidadNegocio'].fillna('URA').str.upper()
+
+# print(df_mergedcuentas.columns)
+
 campos_cuentas = ['NumeroDocumento', 'NumeroCuenta', 'CodigoBanco',
-                  'NombreBanco', 'TipoCuenta', 'ConceptoPago']
+                  'NombreBanco', 'TipoCuenta', 'ConceptoPago', 'UnidadNegocio']
 
 df_cuentas = df_mergedcuentas[campos_cuentas].copy()
 
