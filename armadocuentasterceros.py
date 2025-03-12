@@ -81,6 +81,6 @@ campos_cuentas = ['NumeroDocumento', 'NumeroCuenta', 'CodigoBanco',
 
 df_cuentas = df_mergedcuentas[campos_cuentas].copy()
 
-nombre_archivo = "TercerosCuentasrevisar.csv"
+nombre_archivo = "TercerosCuentasArmadas.csv"
 df_cuentas.astype(str).to_csv(nombre_archivo,
                               index=False, encoding="utf-8", quoting=1)
