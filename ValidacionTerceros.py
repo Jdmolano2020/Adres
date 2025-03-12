@@ -48,6 +48,15 @@ def ordenar_numeros(conceptos):
         conceptos_unicos.add(concepto)
     return '-'.join(sorted(conceptos_unicos)) # Ordenarlos como números
 
+# Función para comparar dos columnas con listas de valores separados por guiones
+def compare_columns(row):
+    set_x = set(row['ConceptoPagoX'].split('-'))
+    set_e = set(row['ConceptoPagoE'].split('-'))
+    diff_x = set_x - set_e
+    diff_e = set_e - set_x
+    concepton = diff_x.union(diff_e)
+    return pd.Series(['-'.join(concepton)]).str.strip()
+
 
 # Función genérica para comparar listas en cualquier par de columnas
 def comparar_listas(row, col_id_pago, col_concepto_pago):
@@ -83,16 +92,19 @@ file_path = 'TerceroBusca.xlsx'
 df_tercerosb = pd.read_excel(file_path, dtype={
     'NumeroDocumento': str, 'ConceptoPagoX': str,})
 
+df_tercerosb=df_tercerosb.groupby('NumeroDocumento')['ConceptoPagoX'].apply(lambda x: '-'.join(map(str, x))).reset_index()
+
 # Aplicar la función a la columna col2
 df_tercerosb['ConceptoPagoX'] = df_tercerosb['ConceptoPagoX'].apply(ordenar_numeros)
 
 df_tercerose = df_tercerosparal.merge(df_tercerosb,
                                       left_on='ID PROVEEDOR',
                                       right_on='NumeroDocumento',
-                                      how='left')
+                                      how='inner')
 
 df_tercerose.drop(columns=['NumeroDocumento'],
                   inplace=True)
+
 
 # Aplicar la función en el DataFrame, indicando los nombres de las columnas que
 # deseas comparar
@@ -101,19 +113,22 @@ df_tercerose[['ConceptoPagoE', 'ConceptoPagoN']] = df_tercerose.apply(
     axis=1
 )
 
-
+df_tercerose['ConceptoPagoE'] = df_tercerose.groupby('ID PROVEEDOR')['ConceptoPagoE'].transform(lambda x: '-'.join(sorted(set(x))))
+df_tercerose['ConceptoPagoN'] = df_tercerose.apply(compare_columns, axis=1)
 # Filtrar registros donde 'ConceptoPagoN' no sea NaN o vacío
 df_filtradon = df_tercerose[df_tercerose['ConceptoPagoN'].notna() & (df_tercerose['ConceptoPagoN'] != '')]
 
 df_filtradoe = df_tercerose[df_tercerose['ConceptoPagoE'].notna() & (df_tercerose['ConceptoPagoE'] != '')]
-df_filtradoe['ConceptoPagoE'] = df_filtradoe.groupby('ID PROVEEDOR')['ConceptoPagoE'].transform(lambda x: '-'.join(sorted(set(x))))
+#df_filtradoe['ConceptoPagoE'] = df_filtradoe.groupby('ID PROVEEDOR')['ConceptoPagoE'].transform(lambda x: '-'.join(sorted(set(x))))
 #df_filtradoe['ConceptoPagoE']=df_filtradoe['ConceptoPagoT'].apply(ordenar_numeros)  # columna innecesarea
 
-df_filtradoe.to_excel("df_filtradoe.xlsx") 
+#df_filtradoe.to_excel("df_filtradoe.xlsx") 
+
 #df_filtradoe.drop ('ConceptoPagoT', axis = 1)
 df_iguales = df_filtradoe[df_filtradoe['ConceptoPagoX'] == df_filtradoe['ConceptoPagoE']]
 df_filtradon = df_filtradon[~df_filtradon['ID PROVEEDOR'].isin(df_iguales['ID PROVEEDOR'])]
 
+#df_filtradon.to_excel("df_filtradon.xlsx") 
 # Expandir 'ConceptoPagoN' en filas separadas (cada valor se divide por '-')
 df_exploded = df_filtradon.assign(ConceptoPagoN=df_filtradon['ConceptoPagoN'].str.split('-')).explode('ConceptoPagoN')
 
@@ -141,11 +156,14 @@ df3.rename(columns={'Tercero': 'Número documento', 'GrupoProveedor': 'Grupo'}, 
 df_G_Proveedores = pd.concat([df1, df2, df3], ignore_index=True)
 
 # Asegurarse de que los valores en la primera columna sean únicos
-# Suponiendo que la primera columna se llama 'columna1'
+# Suponiendo que la primera columna se llama 'Número documento'
 df_G_Proveedores = df_G_Proveedores.drop_duplicates(subset=['Número documento'])
 
 # Recorrer cada valor único de 'ConceptoPagoN' y exportar los registros correspondientes
-for concepto in df_exploded['ConceptoPagoN'].unique():
+conceptos=df_exploded['ConceptoPagoN'].unique()
+conceptos=sorted([elemento for elemento in conceptos if elemento])
+print(conceptos)
+for concepto in conceptos:
     df_subset = df_exploded[df_exploded['ConceptoPagoN'] == concepto].drop_duplicates(subset=['ID PROVEEDOR'])
 
     # Cambia el Tipo de Identificacion para la SUBSET
