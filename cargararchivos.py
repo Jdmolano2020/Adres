@@ -1,17 +1,16 @@
 import pandas as pd
 
 # Cargar el archivo Excel
-file_path = '1.ADR_SupplierImportTemplate_ADR.xlsx'
-df_ADR_Supplier = pd.read_excel(file_path, engine='openpyxl')
-df_ADR_Supplier['id_unico'] = pd.util.hash_pandas_object(df_ADR_Supplier).astype(str)
+file_path = '1.ADR_SupplierImportTemplate_ADR.xlsm'
+df_ADR_Supplier = pd.read_excel(file_path, sheet_name="POZ_SUPPLIERS_INT", header=3 )
 
-file_path = '2.ADR_SupplierAddressImportTemplate_ADR.xlsx'
-df_Address = pd.read_excel(file_path, engine='openpyxl')
+file_path = '2.ADR_SupplierAddressImportTemplate_ADR.xlsm'
+df_Address = pd.read_excel(file_path, sheet_name="POZ_SUPPLIER_ADDRESSES_INT", header=3)
 
-file_path = "7.ADR_SupplierBankAccountImportTemplate_ADR.xlsx"
+file_path = "7.ADR_SupplierBankAccountImportTemplate_ADR.xlsm"
 # Cargar las hojas en DataFrames
-df_payees = pd.read_excel(file_path, sheet_name="IBY_TEMP_EXT_PAYEES", dtype=str)
-df_bank_accts = pd.read_excel(file_path, sheet_name="IBY_TEMP_EXT_BANK_ACCTS", dtype=str)
+df_payees = pd.read_excel(file_path, sheet_name="IBY_TEMP_EXT_PAYEES", dtype=str, header=3)
+df_bank_accts = pd.read_excel(file_path, sheet_name="IBY_TEMP_EXT_BANK_ACCTS ", dtype=str, header=3)
 
 file_path = 'TerceroBusca.xlsx'
 df_tercerosb = pd.read_excel(file_path, dtype={

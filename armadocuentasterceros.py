@@ -48,8 +48,14 @@ cambios_banco = {
     'RappiPay': 'RAPPIPAY',
     'CORPBANCA/SANTANDER': 'BANCO SANTANDER',
     'santander': 'BANCO SANTANDER',
+    'Banco Compartir S.A.': 'MI BANCO',
+    'HSBC': 'BANCO SUDAMERIS',
+    'MEGABANCO': 'BANCO DE BOGOTA',
+    'BANCO COLMENA': 'BANCO CAJA SOCIAL',
+    'BANCO SUPERIOR': 'BANCO DAVIVIENDA',
 }
 
+# BANCO UNION COLOMBIANO	BANCO UNION
 
 # Aplicar los cambios en la columna 'NombreBanco'
 df_bank_acctscuenta['NombreBanco'] = df_bank_acctscuenta['NombreBanco'].replace(
