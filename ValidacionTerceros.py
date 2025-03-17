@@ -276,7 +276,7 @@ df_tercerosne.astype(str).to_csv(nombre_archivo,
                                  index=False, encoding="utf-8", quoting=1)
 df_informe = agregar_informe(df_tercerosne, 'TercerosArmar','ID PROVEEDOR' , df_informe)
 
-print(df_informe)
+print(df_informe.to_string(index=False))
 
 ## captura hora de finalizacion
 end_time = time.time()
