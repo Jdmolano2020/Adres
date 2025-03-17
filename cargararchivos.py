@@ -17,7 +17,7 @@ df_tercerosb = pd.read_excel(file_path, dtype={
     'NumeroDocumento': str, 'ConceptoPagoX': str,})
 
 file_path = 'OCI_TERCEROS.xlsx'
-df_terceros = pd.read_excel(file_path, dtype={
+df_terceros_v1 = pd.read_excel(file_path, dtype={
     'Departamento': str, 'Ciudad': str,
     'NumeroDocumento': str, 'NumeroCuenta': str,
     'NombreBanco': str, 'ConceptoPago': str, })

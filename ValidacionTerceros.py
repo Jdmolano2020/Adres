@@ -77,20 +77,60 @@ def comparar_listas(row, col_id_pago, col_concepto_pago):
         'ConceptoPagoN': '-'.join(concepto_no_existente) if concepto_no_existente else ''
     })
 
+
+def buscarinformacionterceros(df_terceros, df_tercerosb):
+    
+    df_tercerosbc = df_tercerosb.copy()
+    df_tercerosma = df_terceros.copy()
+    # Convertir en lista
+    
+    df_tercerosmae = df_tercerosbc.merge(
+        df_tercerosma,
+        on=['NumeroDocumento'], how='inner')
+    columnas_terceros = ['Nombre', 'TipoDocumento', 'NumeroDocumento',
+                      'Email', 'Naturaleza', 'TipoProveedor',
+                      'PrimerNombre', 'SegundoNombre',
+                      'PrimerApellido', 'SegundoApellido',
+                      'Actividad Economica', 'TipoContribuyente',
+                      'UnidadNegocio', 'Direccion',
+                      'Departamento', 'Ciudad', 'Pais']
+    df_tercerosmae = df_tercerosmae[columnas_terceros].copy()
+    return df_tercerosmae
+
+def buscarcuentaterceros (df_tercerosb, df_cuentas):
+
+    df_tercerosbc = df_tercerosb.copy()
+    df_tercerocb = df_cuentas.copy()
+    # Convertir en lista
+    df_tercerosbc['ConceptoPagoX'] = df_tercerosbc['ConceptoPagoX'].str.split('-')
+    # Expandir en filas  
+    df_tercerosbf = df_tercerosbc.explode('ConceptoPagoX')  
+    
+    df_tercerosbf = df_tercerosbf.rename(
+        columns={'ConceptoPagoX': 'ConceptoPago',})
+    
+    
+    df_tercerocbe = df_tercerosbf.merge(
+        df_tercerocb,
+        on=['NumeroDocumento', 'ConceptoPago'], how='left')
+
+    return df_tercerocbe
+
+
 df_informe = pd.DataFrame(columns=['archivo', 'Cantidad de registros', 'Cantidad de valores únicos'])
 
-file_path = 'OCI_TERCEROS.xlsx'
-df_terceros = pd.read_excel(file_path, dtype={
-    'Departamento': str, 'Ciudad': str,
-    'NumeroDocumento': str, 'NumeroCuenta': str,
-    'NombreBanco': str, 'ConceptoPago': str })
-file_path = 'ADR_Info_Terceros_Direcciones_RP_ADR_Info_Terceros_Direcciones_RP.xlsx'
-df_tercerosparal = pd.read_excel(file_path, dtype={
-    'ID PROVEEDOR': str, 'CODIGO BANCO': str,
-    'CUENTA BANCARIA': str, 'ID PAGO': str},header=1)
-file_path = 'TerceroBusca.xlsx'
-df_tercerosb = pd.read_excel(file_path, dtype={
-    'NumeroDocumento': str, 'ConceptoPagoX': str,})
+# file_path = 'OCI_TERCEROS.xlsx'
+# df_terceros_v1 = pd.read_excel(file_path, dtype={
+#     'Departamento': str, 'Ciudad': str,
+#     'NumeroDocumento': str, 'NumeroCuenta': str,
+#     'NombreBanco': str, 'ConceptoPago': str })
+# file_path = 'ADR_Info_Terceros_Direcciones_RP_ADR_Info_Terceros_Direcciones_RP.xlsx'
+# df_tercerosparal = pd.read_excel(file_path, dtype={
+#     'ID PROVEEDOR': str, 'CODIGO BANCO': str,
+#     'CUENTA BANCARIA': str, 'ID PAGO': str},header=1)
+# file_path = 'TerceroBusca.xlsx'
+# df_tercerosb = pd.read_excel(file_path, dtype={
+#     'NumeroDocumento': str, 'ConceptoPagoX': str,})
 
 df_tercerosb=df_tercerosb.groupby('NumeroDocumento')['ConceptoPagoX'].apply(lambda x: '-'.join(map(str, x))).reset_index()
 
@@ -132,32 +172,32 @@ df_filtradon = df_filtradon[~df_filtradon['ID PROVEEDOR'].isin(df_iguales['ID PR
 # Expandir 'ConceptoPagoN' en filas separadas (cada valor se divide por '-')
 df_exploded = df_filtradon.assign(ConceptoPagoN=df_filtradon['ConceptoPagoN'].str.split('-')).explode('ConceptoPagoN')
 
-## archivo de directorios y divipola
-excel_TI_df = pd.read_excel('DIRECTORIO ERP DINAMICS.xlsx',sheet_name='Tipo Identificacion', dtype={
-    'Número': str, 'TipoIdentificacion (CITAIdentificationType)': str})
-excel_TI_df['TipoIdentificacion (CITAIdentificationType)']=excel_TI_df['TipoIdentificacion (CITAIdentificationType)'].astype('str').str.replace(r".", r"", regex=False)
+# ## archivo de directorios y divipola
+# excel_TI_df = pd.read_excel('DIRECTORIO ERP DINAMICS.xlsx',sheet_name='Tipo Identificacion', dtype={
+#     'Número': str, 'TipoIdentificacion (CITAIdentificationType)': str})
+# excel_TI_df['TipoIdentificacion (CITAIdentificationType)']=excel_TI_df['TipoIdentificacion (CITAIdentificationType)'].astype('str').str.replace(r".", r"", regex=False)
 
-## archivo Grupo de proveedores
-excel_DP_df = pd.read_excel('DIRECTORIO ERP DINAMICS.xlsx',sheet_name='Grupo de proveedores', usecols="A:C", dtype={
-    'Grupo de proveedores': str, 'Descripción': str,'Condiciones de pago': str})
+# ## archivo Grupo de proveedores
+# excel_DP_df = pd.read_excel('DIRECTORIO ERP DINAMICS.xlsx',sheet_name='Grupo de proveedores', usecols="A:C", dtype={
+#     'Grupo de proveedores': str, 'Descripción': str,'Condiciones de pago': str})
 
-## archivo Grupo de proveedores
-df1 = pd.read_excel('TERCEROS SISTEMAS 1.xlsx',usecols="C,M", dtype={
-    'Número documento': str, 'Grupo': str})
+# ## archivo Grupo de proveedores
+# df1 = pd.read_excel('TERCEROS SISTEMAS 1.xlsx',usecols="C,M", dtype={
+#     'Número documento': str, 'Grupo': str})
 
-df2 = pd.read_excel('TERCEROS SISTEMAS 2.xlsx',usecols="C,M", dtype={
-    'Número documento': str, 'Grupo': str})
+# df2 = pd.read_excel('TERCEROS SISTEMAS 2.xlsx',usecols="C,M", dtype={
+#     'Número documento': str, 'Grupo': str})
 
-df3 = pd.read_excel('terceros a migrar.xlsx',usecols="C,F", dtype={
-    'Tercero': str, 'GrupoProveedor': str})
-df3.rename(columns={'Tercero': 'Número documento', 'GrupoProveedor': 'Grupo'}, inplace=True)
+# df3 = pd.read_excel('terceros a migrar.xlsx',usecols="C,F", dtype={
+#     'Tercero': str, 'GrupoProveedor': str})
+# df3.rename(columns={'Tercero': 'Número documento', 'GrupoProveedor': 'Grupo'}, inplace=True)
 
-# Combinar los DataFrames
-df_G_Proveedores = pd.concat([df1, df2, df3], ignore_index=True)
+# # Combinar los DataFrames
+# df_G_Proveedores = pd.concat([df1, df2, df3], ignore_index=True)
 
 # Asegurarse de que los valores en la primera columna sean únicos
 # Suponiendo que la primera columna se llama 'Número documento'
-df_G_Proveedores = df_G_Proveedores.drop_duplicates(subset=['Número documento'])
+# df_G_Proveedores = df_G_Proveedores.drop_duplicates(subset=['Número documento'])
 
 # Recorrer cada valor único de 'ConceptoPagoN' y exportar los registros correspondientes
 conceptos=df_exploded['ConceptoPagoN'].unique()
@@ -167,7 +207,7 @@ for concepto in conceptos:
     df_subset = df_exploded[df_exploded['ConceptoPagoN'] == concepto].drop_duplicates(subset=['ID PROVEEDOR'])
 
     # Cambia el Tipo de Identificacion para la SUBSET
-    df_subset = df_subset.merge(df_terceros[['NumeroDocumento','Direccion','Departamento','Ciudad']], left_on='ID PROVEEDOR', right_on='NumeroDocumento', how='left')
+    df_subset = df_subset.merge(df_terceros_v1[['NumeroDocumento','Direccion','Departamento','Ciudad']], left_on='ID PROVEEDOR', right_on='NumeroDocumento', how='left')
 
     # Cambia el Tipo de direccion, deparatamento y municipio a numero para la SUBSET
     df_subset['DIRECCION1']=df_subset['Direccion']
@@ -185,50 +225,50 @@ for concepto in conceptos:
 
     ###############################   DATAFRAME PLANTILLA
 
-    df_plantilla= pd.DataFrame(columns=['IdProceso','TipoProceso','LineaNegocio','UnidadNegocio','NumeroIdentificacion','PrimerNombreRazonSocial','SegundoNombre','PrimerApellido','SegundoApellido','TipoIdentificacion','GrupoClienteProveedor','DimensionCentro','Direccion','Departamento','Municipio','Pais','Correo','CodigoCIIU','Reciproco','GrupoImpuesto','NumeroCuentaBancaria','TipoCuenta','CodigoBanco','NombreCuenta','ConceptoPago','FormaPago','NombreBanco','NumeroRuta'])
-    df_plantilla[['NumeroIdentificacion','PrimerNombreRazonSocial','TipoIdentificacion','TipoCuenta','ConceptoPago','Direccion','Departamento','Municipio']]=df_subset[['ID PROVEEDOR','NOMBRE PROVEEDOR','TIPO DOCUMENTO','TIPO CUENTA','ConceptoPagoX','DIRECCION1','DEPARTAMENTO','CIUDAD']]
-    df_plantilla['PrimerNombreRazonSocial']=df_plantilla['PrimerNombreRazonSocial'].str.extract(r'^[^-\n]*-[^-\n]*-(.*)$')
-    df_plantilla['TipoProceso']='44'
-    df_plantilla['LineaNegocio']='14'
-    df_plantilla['UnidadNegocio']='FOS'
-    #df_plantilla['DimensionCentro']='2'
-    #df_plantilla['Direccion']='Oficina Central URA'
-    #df_plantilla['Departamento']='11'
-    #df_plantilla['Municipio']='001'
-    df_plantilla['Pais']='COL'
-    df_plantilla['GrupoImpuesto']='RC'
+    # df_plantilla= pd.DataFrame(columns=['IdProceso','TipoProceso','LineaNegocio','UnidadNegocio','NumeroIdentificacion','PrimerNombreRazonSocial','SegundoNombre','PrimerApellido','SegundoApellido','TipoIdentificacion','GrupoClienteProveedor','DimensionCentro','Direccion','Departamento','Municipio','Pais','Correo','CodigoCIIU','Reciproco','GrupoImpuesto','NumeroCuentaBancaria','TipoCuenta','CodigoBanco','NombreCuenta','ConceptoPago','FormaPago','NombreBanco','NumeroRuta'])
+    # df_plantilla[['NumeroIdentificacion','PrimerNombreRazonSocial','TipoIdentificacion','TipoCuenta','ConceptoPago','Direccion','Departamento','Municipio']]=df_subset[['ID PROVEEDOR','NOMBRE PROVEEDOR','TIPO DOCUMENTO','TIPO CUENTA','ConceptoPagoX','DIRECCION1','DEPARTAMENTO','CIUDAD']]
+    # df_plantilla['PrimerNombreRazonSocial']=df_plantilla['PrimerNombreRazonSocial'].str.extract(r'^[^-\n]*-[^-\n]*-(.*)$')
+    # df_plantilla['TipoProceso']='44'
+    # df_plantilla['LineaNegocio']='14'
+    # df_plantilla['UnidadNegocio']='FOS'
+    # #df_plantilla['DimensionCentro']='2'
+    # #df_plantilla['Direccion']='Oficina Central URA'
+    # #df_plantilla['Departamento']='11'
+    # #df_plantilla['Municipio']='001'
+    # df_plantilla['Pais']='COL'
+    # df_plantilla['GrupoImpuesto']='RC'
 
-    # Cambiar las palabras Ahorro y Corriente por los tipos [0,1] para la plantilla
-    df_plantilla['TipoCuenta'] = "" #df_plantilla['TipoCuenta'].apply(lambda x: '0' if x=='Corriente' else 1 if x=='Ahorro' else "")
+    # # Cambiar las palabras Ahorro y Corriente por los tipos [0,1] para la plantilla
+    # df_plantilla['TipoCuenta'] = "" #df_plantilla['TipoCuenta'].apply(lambda x: '0' if x=='Corriente' else 1 if x=='Ahorro' else "")
 
-    # Cambia el Tipo de Identificacion para la plantilla
-    df_plantilla = df_plantilla.merge(excel_TI_df, left_on='TipoIdentificacion', right_on='TipoIdentificacion (CITAIdentificationType)', how='left')
-    df_plantilla['TipoIdentificacion']=df_plantilla['Número']
+    # # Cambia el Tipo de Identificacion para la plantilla
+    # df_plantilla = df_plantilla.merge(excel_TI_df, left_on='TipoIdentificacion', right_on='TipoIdentificacion (CITAIdentificationType)', how='left')
+    # df_plantilla['TipoIdentificacion']=df_plantilla['Número']
 
-    # Cambia el Tipo de Identificacion para la plantilla
-    df_plantilla = df_plantilla.merge(df_terceros[['NumeroDocumento','Direccion','Departamento','Ciudad',]], left_on='NumeroIdentificacion', right_on='NumeroDocumento', how='left')
+    # # Cambia el Tipo de Identificacion para la plantilla
+    # df_plantilla = df_plantilla.merge(df_terceros_v1[['NumeroDocumento','Direccion','Departamento','Ciudad',]], left_on='NumeroIdentificacion', right_on='NumeroDocumento', how='left')
 
-    # Cambia el Tipo de direccion, deparatamento y municipio a numero EN PLANTILLA
-    df_plantilla['Direccion_x']=df_plantilla['Direccion_y']
-    df_plantilla['Departamento_x']=df_plantilla['Departamento_y']
-    df_plantilla['Municipio']=df_plantilla['Ciudad'].str[2:5] 
+    # # Cambia el Tipo de direccion, deparatamento y municipio a numero EN PLANTILLA
+    # df_plantilla['Direccion_x']=df_plantilla['Direccion_y']
+    # df_plantilla['Departamento_x']=df_plantilla['Departamento_y']
+    # df_plantilla['Municipio']=df_plantilla['Ciudad'].str[2:5] 
 
-    df_plantilla.rename(columns={'Direccion_x': 'Direccion', 'Departamento_x': 'Departamento'}, inplace=True)
+    # df_plantilla.rename(columns={'Direccion_x': 'Direccion', 'Departamento_x': 'Departamento'}, inplace=True)
 
-    # Obtener el Grupo de profevedores df_G_Proveedores PLANTILLA
-    df_plantilla = df_plantilla.merge(df_G_Proveedores, left_on='NumeroIdentificacion', right_on='Número documento', how='left')
-    df_plantilla['GrupoClienteProveedor']=df_plantilla['Grupo']
+    # # Obtener el Grupo de profevedores df_G_Proveedores PLANTILLA
+    # df_plantilla = df_plantilla.merge(df_G_Proveedores, left_on='NumeroIdentificacion', right_on='Número documento', how='left')
+    # df_plantilla['GrupoClienteProveedor']=df_plantilla['Grupo']
 
-    # Buscar DimensionCentro
-    df_plantilla = df_plantilla.merge(excel_DP_df, left_on='GrupoClienteProveedor', right_on='Grupo de proveedores', how='left')
-    df_plantilla['DimensionCentro']=df_plantilla['Condiciones de pago']
+    # # Buscar DimensionCentro
+    # df_plantilla = df_plantilla.merge(excel_DP_df, left_on='GrupoClienteProveedor', right_on='Grupo de proveedores', how='left')
+    # df_plantilla['DimensionCentro']=df_plantilla['Condiciones de pago']
 
-    #Eliminar Columnas 
-    df_plantilla.drop(columns=['Número', 'TipoIdentificacion (CITAIdentificationType)', 'NumeroDocumento','Direccion_y',
-                               'Departamento_y','Ciudad','Número documento','Grupo','Condiciones de pago','Descripción',
-                               'Grupo de proveedores'], inplace=True)
+    # #Eliminar Columnas 
+    # df_plantilla.drop(columns=['Número', 'TipoIdentificacion (CITAIdentificationType)', 'NumeroDocumento','Direccion_y',
+    #                            'Departamento_y','Ciudad','Número documento','Grupo','Condiciones de pago','Descripción',
+    #                            'Grupo de proveedores'], inplace=True)
 
-    df_plantilla.to_csv(f"{output_folder}/pl_terceros_{concepto.replace(' ', '_').replace('/', '_')}.csv", index=False, encoding='utf-8-sig', quoting=1)
+    # df_plantilla.to_csv(f"{output_folder}/pl_terceros_{concepto.replace(' ', '_').replace('/', '_')}.csv", index=False, encoding='utf-8-sig', quoting=1)
 
 print("Exportación Terceros Existentes completada.")
 
@@ -250,7 +290,7 @@ df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
 df_tercerosne = df_tercerosne.drop(columns=['_merge'])
 df_tercerosne = df_tercerosne[df_tercerosb.columns]
 
-df_tercerosc = df_terceros.merge(df_tercerosne,
+df_tercerosc = df_terceros_v1.merge(df_tercerosne,
                                  left_on='NumeroDocumento',
                                  right_on='NumeroDocumento',
                                  how='inner')
@@ -261,7 +301,7 @@ df_tercerosc.astype(str).to_csv(nombre_archivo,
 
 df_informe = agregar_informe(df_tercerosc, 'TercerosCargar','NumeroDocumento' , df_informe)
 
-df_tercerosne = df_tercerosne.merge(df_terceros,
+df_tercerosne = df_tercerosne.merge(df_terceros_v1,
                                     left_on='NumeroDocumento',
                                     right_on='NumeroDocumento',
                                     how='left',
@@ -272,11 +312,14 @@ df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
 df_tercerosne = df_tercerosne.drop(columns=['_merge'])
 df_tercerosne = df_tercerosne[df_tercerosb.columns]
 nombre_archivo = f"{output_folder}/TercerosArmar.csv"
+df_terceros_armar = buscarinformacionterceros(df_terceros, df_tercerosne)
+df_terceros_cuentas = buscarcuentaterceros(df_tercerosne, df_cuentas)
+
 df_tercerosne.astype(str).to_csv(nombre_archivo,
                                  index=False, encoding="utf-8", quoting=1)
 df_informe = agregar_informe(df_tercerosne, 'TercerosArmar','ID PROVEEDOR' , df_informe)
 
-print(df_informe.to_string(index=False))
+print(df_informe)
 
 ## captura hora de finalizacion
 end_time = time.time()
@@ -285,3 +328,7 @@ print(f"fin: ", {datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')}
 # Calcular el tiempo total de ejecución
 tiempo_total = end_time - start_time
 print(f"Tiempo total de ejecución: {tiempo_total:.2f} segundos", segundos_a_segundos_minutos_y_horas(int(round(tiempo_total,0))))
+
+nombre_archivo = f"{output_folder}/TercerosNoExistentes.csv"
+df_exploded.astype(str).to_csv(nombre_archivo,
+                                index=False, encoding="utf-8", quoting=1)
