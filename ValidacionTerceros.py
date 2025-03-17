@@ -315,6 +315,11 @@ nombre_archivo = f"{output_folder}/TercerosArmar.csv"
 df_terceros_armar = buscarinformacionterceros(df_terceros, df_tercerosne)
 df_terceros_cuentas = buscarcuentaterceros(df_tercerosne, df_cuentas)
 
+df_terceros_armar = df_terceros_armar.merge(df_terceros_cuentas,
+                                  on=['NumeroDocumento', 'UnidadNegocio'], how='left')
+
+
+
 df_tercerosne.astype(str).to_csv(nombre_archivo,
                                  index=False, encoding="utf-8", quoting=1)
 df_informe = agregar_informe(df_tercerosne, 'TercerosArmar','ID PROVEEDOR' , df_informe)
