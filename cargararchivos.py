@@ -25,4 +25,4 @@ df_terceros_v1 = pd.read_excel(file_path, dtype={
 file_path = 'ADR_Info_Terceros_Direcciones_RP_ADR_Info_Terceros_Direcciones_RP.xlsx'
 df_tercerosparal = pd.read_excel(file_path, dtype={
     'ID PROVEEDOR': str, 'CODIGO BANCO': str,
-    'CUENTA BANCARIA': str, 'ID PAGO': str})
+    'CUENTA BANCARIA': str, 'ID PAGO': str}, header=1)
