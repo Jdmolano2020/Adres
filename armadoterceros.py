@@ -1,4 +1,8 @@
 import pandas as pd
+import numpy as np
+
+# Expresión regular para validar correos electrónicos
+regex_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 # Cargar el archivo Excel
 # file_path = '../ArmandoTerceros/1.ADR_SupplierImportTemplate_ADR.xlsm'
@@ -41,7 +45,8 @@ df_Address = df_Address.drop_duplicates(
 
 df_payees = df_payees.rename(columns={'*Supplier Number': 'NumeroDocumento',
                                       'Business Unit Name': 'UnidadNegocio',
-                                      'Supplier Site': 'Ciudad'})
+                                      'Supplier Site': 'Ciudad',
+                                      'Remit Advice Email':'Email'})
 
 df_payees = df_payees.drop_duplicates(
     subset=['NumeroDocumento', 'UnidadNegocio'], keep='first')
@@ -70,12 +75,69 @@ columnas_terceros = [
     'TipoDocumento', 'NumeroDocumento', 'PrimerNombre',
     'SegundoNombre', 'PrimerApellido', 'SegundoApellido',
     'Actividad Economica', 'TipoContribuyente', 'Direccion', 'UnidadNegocio',
-    'Ciudad', 'Pais']
+    'Ciudad', 'Pais','Email']
 
 df_terceros = df_merged[columnas_terceros].copy()
 
 df_terceros['Departamento'] = df_terceros['Ciudad'].astype(str).str[:2]
 df_terceros['UnidadNegocio'] = df_terceros['UnidadNegocio'].replace('fos', 'URA').str.upper()
+df_terceros['Naturaleza'] = np.where(df_terceros['TipoDocumento'] == '31', 'J', 'N')
+df_terceros['TipoProveedor'] = "Supplier"
+# df_terceros['Email'] = ""
+
+df_terceros['Nombre'] = df_terceros[['PrimerNombre', 'SegundoNombre', 'PrimerApellido', 'SegundoApellido']] \
+    .fillna('') \
+    .astype(str) \
+    .apply(lambda x: ' '.join(x).strip(), axis=1)
+
+df_terceros['Nombre'] = df_terceros['Nombre'].replace(
+    r'[&()/,?:>\`\"+\'@]', '', regex=True)
+
+df_terceros['PrimerNombre'] = df_terceros['PrimerNombre'].replace(
+    r'[&()/,?:>\`\"+\'@]', '', regex=True)
+df_terceros['SegundoNombre'] = df_terceros['SegundoNombre'].replace(
+    r'[&()/,?:>\`\"+\'@]', '', regex=True)
+df_terceros['PrimerApellido'] = df_terceros['PrimerApellido'].replace(
+    r'[&()/,?:>\`\"+\'@]', '', regex=True)
+df_terceros['SegundoApellido'] = df_terceros['SegundoApellido'].replace(
+    r'[&()/,?:>\`\"+\'@]', '', regex=True)
+
+df_terceros['Nombre'] = df_terceros['Nombre'].replace(
+    r'[ñÑ]', 'N', regex=True)
+
+df_terceros['PrimerNombre'] = df_terceros['PrimerNombre'].replace(
+    r'[ñÑ]', 'N', regex=True)
+df_terceros['SegundoNombre'] = df_terceros['SegundoNombre'].replace(
+    r'[ñÑ]', 'N', regex=True)
+df_terceros['PrimerApellido'] = df_terceros['PrimerApellido'].replace(
+    r'[ñÑ]', 'N', regex=True)
+df_terceros['SegundoApellido'] = df_terceros['SegundoApellido'].replace(
+    r'[ñÑ]', 'N', regex=True)
+
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[$·ª=_~!¦§°<*ºØ&()/,?:>\`\"+\'@\]]', '', regex=True)
+
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[#]', 'No', regex=True)
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[¢]', 'O', regex=True)
+
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[-]', ' ', regex=True)
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[¡]', 'I', regex=True)
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[¤]', 'N', regex=True)
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[µ]', 'A', regex=True)
+df_terceros['Direccion'] = df_terceros['Direccion'].replace(
+    r'[£]', 'U', regex=True)
+
+
+df_terceros['Direccion'] = df_terceros['Direccion'].str.replace(r'\s+', ' ', regex=True).str.strip()
+
+# Asignar cadena vacía a los correos no válidos
+df_terceros['Email'] = df_terceros['Email'].where(df_terceros['Email'].str.match(regex_email, na=False), "")
 
 df_duplicados = df_terceros[df_terceros.duplicated(
     subset=['NumeroDocumento'], keep=False)]
