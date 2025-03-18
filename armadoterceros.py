@@ -46,19 +46,14 @@ df_Address = df_Address.drop_duplicates(
 df_payees = df_payees.rename(columns={'*Supplier Number': 'NumeroDocumento',
                                       'Business Unit Name': 'UnidadNegocio',
                                       'Supplier Site': 'Ciudad',
-                                      'Remit Advice Email':'Email'})
+                                      'Remit Advice Email': 'Email'})
 
 df_payees = df_payees.drop_duplicates(
     subset=['NumeroDocumento', 'UnidadNegocio'], keep='first')
 
-# df_bank_accts = df_bank_accts.rename(columns={'*Payee Identifier': 'NumeroDocumento',
-#                               '**Branch Name': 'NombreBanco',
-#                               'Id Concepto de pago': 'ConceptoPago',
-#                               '*Account Number': 'NumeroCuenta',
-#                               'Account Type Code': 'TipoCuenta'})
 
-
-df_merged = df_ADR_Supplier.merge(df_Address, on='NumeroDocumento', how='inner')
+df_merged = df_ADR_Supplier.merge(
+    df_Address, on='NumeroDocumento', how='inner')
 
 columnas_terceros = [
     'TipoDocumento', 'NumeroDocumento',  'PrimerNombre',
@@ -75,17 +70,20 @@ columnas_terceros = [
     'TipoDocumento', 'NumeroDocumento', 'PrimerNombre',
     'SegundoNombre', 'PrimerApellido', 'SegundoApellido',
     'Actividad Economica', 'TipoContribuyente', 'Direccion', 'UnidadNegocio',
-    'Ciudad', 'Pais','Email']
+    'Ciudad', 'Pais', 'Email']
 
 df_terceros = df_merged[columnas_terceros].copy()
 
 df_terceros['Departamento'] = df_terceros['Ciudad'].astype(str).str[:2]
-df_terceros['UnidadNegocio'] = df_terceros['UnidadNegocio'].replace('fos', 'URA').str.upper()
-df_terceros['Naturaleza'] = np.where(df_terceros['TipoDocumento'] == '31', 'J', 'N')
+df_terceros['UnidadNegocio'] = df_terceros['UnidadNegocio'].replace(
+    'fos', 'URA').str.upper()
+df_terceros['Naturaleza'] = np.where(
+    df_terceros['TipoDocumento'] == '31', 'J', 'N')
 df_terceros['TipoProveedor'] = "Supplier"
 # df_terceros['Email'] = ""
 
-df_terceros['Nombre'] = df_terceros[['PrimerNombre', 'SegundoNombre', 'PrimerApellido', 'SegundoApellido']] \
+df_terceros['Nombre'] = df_terceros[['PrimerNombre', 'SegundoNombre',
+                                     'PrimerApellido', 'SegundoApellido']] \
     .fillna('') \
     .astype(str) \
     .apply(lambda x: ' '.join(x).strip(), axis=1)
@@ -134,10 +132,17 @@ df_terceros['Direccion'] = df_terceros['Direccion'].replace(
     r'[£]', 'U', regex=True)
 
 
-df_terceros['Direccion'] = df_terceros['Direccion'].str.replace(r'\s+', ' ', regex=True).str.strip()
+df_terceros['Direccion'] = df_terceros['Direccion'].str.replace(
+    r'\s+', ' ', regex=True).str.strip()
 
 # Asignar cadena vacía a los correos no válidos
-df_terceros['Email'] = df_terceros['Email'].where(df_terceros['Email'].str.match(regex_email, na=False), "")
+df_terceros['Email'] = df_terceros['Email'].where(
+    df_terceros['Email'].str.match(regex_email, na=False), "")
+
+df_terceros_mail = df_terceros[df_terceros['Email'].notna() & (
+    df_terceros['Email'] != '')]
+
+df_filtro = df_terceros[df_terceros['NumeroDocumento'] == '901037916']
 
 df_duplicados = df_terceros[df_terceros.duplicated(
     subset=['NumeroDocumento'], keep=False)]
