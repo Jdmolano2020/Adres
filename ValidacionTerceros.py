@@ -166,11 +166,24 @@ df_filtradoe = df_tercerose[df_tercerose['ConceptoPagoE'].notna() & (df_terceros
 
 #df_filtradoe.drop ('ConceptoPagoT', axis = 1)
 df_iguales = df_filtradoe[df_filtradoe['ConceptoPagoX'] == df_filtradoe['ConceptoPagoE']]
-df_filtradon = df_filtradon[~df_filtradon['ID PROVEEDOR'].isin(df_iguales['ID PROVEEDOR'])]
+
+df_filtradon=buscarcuentaterceros(df_filtradon.rename(columns={'ID PROVEEDOR': 'NumeroDocumento'}), df_cuentas)
+# df_test=df_test.drop_duplicates()
+# df_test=df_test.merge(df_ADR_Supplier, left_on='NumeroDocumento', right_on='Supplier Number',  how='inner')
+# df_test=df_test[['TIPO DOCUMENTO','NumeroDocumento','Supplier Type',
+#                  'Nombre','Segundo Nombre','Apellido','Segundo Apellido',
+#                  #'NOMBRE DIRECCION','DIRECCION1','UNIDAD NEGOCIO',
+#                  'NumeroCuenta',
+#                  'CodigoBanco','NombreBanco','TipoCuenta','UnidadNegocio',
+#                  'ConceptoPago']]
+# df_test=df_test.merge(df_Address[['Supplier Number','ID TIPO DE DOCUMENTO','Address Line 1']], left_on='NumeroDocumento', right_on='Supplier Number',  how='inner')
+df_filtradon=df_filtradon.merge(df_terceros, on='NumeroDocumento',  how='inner').drop_duplicates()
+
+
 
 #df_filtradon.to_excel("df_filtradon.xlsx") 
 # Expandir 'ConceptoPagoN' en filas separadas (cada valor se divide por '-')
-df_exploded = df_filtradon.assign(ConceptoPagoN=df_filtradon['ConceptoPagoN'].str.split('-')).explode('ConceptoPagoN')
+#df_exploded = df_filtradon.assign(ConceptoPagoN=df_filtradon['ConceptoPagoN'].str.split('-')).explode('ConceptoPagoN')
 
 # ## archivo de directorios y divipola
 # excel_TI_df = pd.read_excel('DIRECTORIO ERP DINAMICS.xlsx',sheet_name='Tipo Identificacion', dtype={
@@ -200,7 +213,11 @@ df_exploded = df_filtradon.assign(ConceptoPagoN=df_filtradon['ConceptoPagoN'].st
 # df_G_Proveedores = df_G_Proveedores.drop_duplicates(subset=['Número documento'])
 
 # Recorrer cada valor único de 'ConceptoPagoN' y exportar los registros correspondientes
-conceptos=df_exploded['ConceptoPagoN'].unique()
+
+#df_exploded=df_exploded[df_exploded['ConceptoPagoN'].notna() & (df_exploded['ConceptoPagoN'].str.len() > 0)]
+
+
+conceptos=df_filtradon['ConceptoPago'].unique()
 conceptos=sorted([elemento for elemento in conceptos if elemento])
 print(conceptos)
 for concepto in conceptos:
@@ -283,17 +300,21 @@ df_tercerosne = df_tercerosb.merge(df_tercerosparal,
                                    how='left',
                                    indicator=True)
 
+df_tercerosc=buscarcuentaterceros(df_tercerosne, df_cuentas)
+df_tercerosc=df_tercerosc.merge(df_terceros, on='NumeroDocumento', how='inner')
+
 # Filtrar los registros que no tienen coincidencia en df_tercerosparal
-df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
+#df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
 
 # Eliminar la columna _merge si no la necesitas
-df_tercerosne = df_tercerosne.drop(columns=['_merge'])
-df_tercerosne = df_tercerosne[df_tercerosb.columns]
+#df_tercerosne = df_tercerosne.drop(columns=['_merge'])
+#df_tercerosne = df_tercerosne[df_tercerosb.columns]
 
-df_tercerosc = df_terceros_v1.merge(df_tercerosne,
-                                 left_on='NumeroDocumento',
-                                 right_on='NumeroDocumento',
-                                 how='inner')
+
+# df_tercerosc = df_terceros_v1.merge(df_tercerosne,
+#                                  left_on='NumeroDocumento',
+#                                  right_on='NumeroDocumento',
+#                                  how='inner')
 
 nombre_archivo = f"{output_folder}/TercerosCargar.csv"
 df_tercerosc.astype(str).to_csv(nombre_archivo,
