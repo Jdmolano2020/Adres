@@ -5,25 +5,7 @@ import numpy as np
 regex_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 # Cargar el archivo Excel
-# file_path = '../ArmandoTerceros/1.ADR_SupplierImportTemplate_ADR.xlsm'
-# df_ADR_Supplier = pd.read_excel(file_path, sheet_name="POZ_SUPPLIERS_INT", header=3 )
-# df_ADR_Supplier['id_unico'] = pd.util.hash_pandas_object(df_ADR_Supplier).astype(str)
-# # Mostrar las primeras filas del dataframe
-
-# file_path = '../ArmandoTerceros/2.ADR_SupplierAddressImportTemplate_ADR.xlsm'
-# df_Address = pd.read_excel(file_path, sheet_name="POZ_SUPPLIER_ADDRESSES_INT", header=3)
-
-# file_path = "../ArmandoTerceros/7.ADR_SupplierBankAccountImportTemplate_ADR.xlsm"
-
-# # Cargar las hojas en DataFrames
-# df_payees = pd.read_excel(file_path, sheet_name="IBY_TEMP_EXT_PAYEES", dtype=str)
-# df_bank_accts = pd.read_excel(file_path, sheet_name="IBY_TEMP_EXT_BANK_ACCTS ", dtype=str, header=4)
-
-
-# file_path = 'TerceroBusca.xlsx'
-# df_tercerosb = pd.read_excel(file_path, dtype={
-#     'NumeroDocumento': str, 'ConceptoPagoX': str,})
-
+# Se usa programa cargararchivos.py
 df_ADR_Supplier = df_ADR_Supplier.rename(columns={'Supplier Number': 'NumeroDocumento',
                                                   'Taxpayer Country': 'Pais',
                                                   'Nombre': 'PrimerNombre',
@@ -141,6 +123,12 @@ df_terceros['Email'] = df_terceros['Email'].where(
 
 df_terceros_mail = df_terceros[df_terceros['Email'].notna() & (
     df_terceros['Email'] != '')]
+df_terceros = df_terceros.fillna('')
+df_terceros = df_terceros.astype(str)
+df_terceros['TipoDocumento'] = df_terceros[
+    'TipoDocumento'].astype(str).str.replace(r'\.0$', '', regex=True)
+
+df_terceros.to_parquet("df_terceros.parquet", engine="pyarrow", index=False)
 
 df_filtro = df_terceros[df_terceros['NumeroDocumento'] == '901037916']
 
