@@ -1,118 +1,104 @@
 import pandas as pd
+import json
+import requests
 
-import os
-
-# Crear carpeta para guardar los archivos exportados
-output_folder = "archivos_terceros"
-os.makedirs(output_folder, exist_ok=True)
+# Función para construir el JSON
 
 
-# Función genérica para comparar listas en cualquier par de columnas
-def comparar_listas(row, col_id_pago, col_concepto_pago):
-    # Convertir a string y manejar NaN reemplazándolos por una cadena vacía
-    id_pago_str = str(row[col_id_pago]) if pd.notna(row[col_id_pago]) else ''
-    concepto_pago_str = str(row[col_concepto_pago]) if pd.notna(row[col_concepto_pago]) else ''
+def construir_json(df):
+    resultado = {"DATA": []}
 
-    # Convertir en listas separadas por '-'
-    id_pago_list = set(id_pago_str.split('-')) if id_pago_str else set()
-    concepto_pago_list = concepto_pago_str.split('-') if concepto_pago_str else []
+    # Agrupar por NumeroDocumento
+    for num_doc, doc_group in df.groupby("NumeroDocumento"):
+        documento = {
+            "NumeroDocumento": num_doc,
+            "Nombre": doc_group["Nombre"].iloc[0],
+            "TipoDocumento": doc_group["TipoDocumento"].iloc[0],
+            "Email": doc_group["Email"].iloc[0],
+            "Naturaleza": doc_group["Naturaleza"].iloc[0],
+            "TipoProveedor": doc_group["TipoProveedor"].iloc[0],
+            "PrimerNombre": doc_group["PrimerNombre"].iloc[0],
+            "SegundoNombre": doc_group["SegundoNombre"].iloc[0],
+            "PrimerApellido": doc_group["PrimerApellido"].iloc[0],
+            "SegundoApellido": doc_group["SegundoApellido"].iloc[0],
+            "Actividad Economica": doc_group["Actividad Economica"].iloc[0],
+            "TipoContribuyente": doc_group["TipoContribuyente"].iloc[0],
+            "Direcciones": []
+        }
 
-    # Comparar listas
-    concepto_existente = [cp for cp in concepto_pago_list if cp in id_pago_list]
-    concepto_no_existente = [cp for cp in concepto_pago_list if cp not in id_pago_list]
-    
-    return pd.Series({
-        'ConceptoPagoE': '-'.join(concepto_existente) if concepto_existente else '',
-        'ConceptoPagoN': '-'.join(concepto_no_existente) if concepto_no_existente else ''
-    })
+        # Agrupar dentro del documento por UnidadNegocio, Direccion, Departamento, Ciudad, Pais
+        for _, dir_group in doc_group.groupby(["UnidadNegocio", "Direccion", "Departamento", "Ciudad", "Pais"], dropna=False):
+            direccion = {
+                "UnidadNegocio": dir_group["UnidadNegocio"].iloc[0],
+                "Direccion": dir_group["Direccion"].iloc[0],
+                "Departamento": dir_group["Departamento"].iloc[0],
+                "Ciudad": dir_group["Ciudad"].iloc[0],
+                "Pais": dir_group["Pais"].iloc[0],
+                "CuentaBancaria": []
+            }
 
+            # Agregar cuentas bancarias si existen datos válidos
+            cuentas = dir_group[["NumeroCuenta", "NombreBanco", "TipoCuenta", "ConceptoPago"]].dropna(
+                how='all').to_dict(orient="records")
+            if cuentas:
+                direccion["CuentaBancaria"] = cuentas
 
-file_path = 'OCI_TERCEROS.xlsx'
-df_terceros = pd.read_excel(file_path, dtype={
-    'Departamento': str, 'Ciudad': str,
-    'NumeroDocumento': str, 'NumeroCuenta': str,
-    'NombreBanco': str, 'ConceptoPago': str, })
-file_path = 'ADR_Info_Terceros_Direcciones_RP_ADR_Info_Terceros_Direcciones_RP.xlsx'
-df_tercerosparal = pd.read_excel(file_path, dtype={
-    'ID PROVEEDOR': str, 'CODIGO BANCO': str,
-    'CUENTA BANCARIA': str, 'ID PAGO': str})
-file_path = 'TerceroBusca.xlsx'
-df_tercerosb = pd.read_excel(file_path, dtype={
-    'NumeroDocumento': str, 'ConceptoPagoX': str,})
+            documento["Direcciones"].append(direccion)
 
+        resultado["DATA"].append(documento)
 
-df_tercerose = df_tercerosparal.merge(df_tercerosb,
-                                      left_on='ID PROVEEDOR',
-                                      right_on='NumeroDocumento',
-                                      how='inner')
-
-df_tercerose.drop(columns=['NumeroDocumento'],
-                  inplace=True)
-
-# Aplicar la función en el DataFrame, indicando los nombres de las columnas que
-# deseas comparar
-df_tercerose[['ConceptoPagoE', 'ConceptoPagoN']] = df_tercerose.apply(
-    lambda row: comparar_listas(row, 'ID PAGO', 'ConceptoPagoX'),
-    axis=1
-)
+    return resultado
 
 
-# Filtrar registros donde 'ConceptoPagoN' no sea NaN o vacío
-df_filtrado = df_tercerose[df_tercerose['ConceptoPagoN'].notna() & (df_tercerose['ConceptoPagoN'] != '')]
+# Generar el JSON con la función
 
-# Expandir 'ConceptoPagoN' en filas separadas (cada valor se divide por '-')
-df_exploded = df_filtrado.assign(ConceptoPagoN=df_filtrado['ConceptoPagoN'].str.split('-')).explode('ConceptoPagoN')
+columnas_terceros = ['Nombre', 'TipoDocumento', 'NumeroDocumento',
+                     'Email', 'Naturaleza', 'TipoProveedor',
+                     'PrimerNombre', 'SegundoNombre',
+                     'PrimerApellido', 'SegundoApellido',
+                     'Actividad Economica', 'TipoContribuyente',
+                     'UnidadNegocio', 'Direccion',
+                     'Departamento', 'Ciudad', 'Pais']
+df_tercerosmae = df_duplicados[columnas_terceros].copy()
 
-# Recorrer cada valor único de 'ConceptoPagoN' y exportar los registros correspondientes
-for concepto in df_exploded['ConceptoPagoN'].unique():
-    df_subset = df_exploded[df_exploded['ConceptoPagoN'] == concepto].drop_duplicates(subset=['ID PROVEEDOR'])
-
-    # Crear nombre de archivo seguro
-    nombre_archivo = f"{output_folder}/terceros_{concepto.replace(' ', '_').replace('/', '_')}.csv"
-    
-    # Exportar a CSV
-    df_subset.to_csv(nombre_archivo, index=False, encoding='utf-8-sig', sep=';', quoting=1)
-
-print("Exportación Terceros Existentes completada.")
-
-df_filtrado = df_tercerose[df_tercerose['ConceptoPagoE'].notna() & (df_tercerose['ConceptoPagoE'] != '')]
-nombre_archivo = f"{output_folder}/TercerosExistentes.csv"
-df_filtrado.astype(str).to_csv(nombre_archivo,
-                                index=False, encoding="utf-8", quoting=1)
+df_tercerosmaecb = df_tercerosmae.merge(df_cuentas,
+                                        on=['NumeroDocumento',
+                                            'UnidadNegocio'], how='left')
+df_tercerosmaecb.drop(columns=['NombreBanco'], inplace=True)
+df_tercerosmaecb.rename(columns={'CodigoBanco': 'NombreBanco'}, inplace=True)
 
 
-df_tercerosne = df_tercerosb.merge(df_tercerosparal,
-                                   left_on='NumeroDocumento',
-                                   right_on='ID PROVEEDOR',
-                                   how='left',
-                                   indicator=True)
+# Generar el JSON con la función
+json_resultado = construir_json(df_tercerosmaecb)
 
-# Filtrar los registros que no tienen coincidencia en df_tercerosparal
-df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
+# Guardar en un archivo
+with open("datos_terceros.json", "w", encoding="utf-8") as f:
+    json.dump(json_resultado, f, indent=4, ensure_ascii=False)
 
-# Eliminar la columna _merge si no la necesitas
-df_tercerosne = df_tercerosne.drop(columns=['_merge'])
-df_tercerosne = df_tercerosne[df_tercerosb.columns]
+# URL del servicio
+url = "https://desarrrollo-adr-axstgrwlxen2-px.integration.us-phoenix-1.ocp.oraclecloud.com/ic/api/integration/v1/flows/rest/ADR_CREARACTUA_TERCERO/1.0/data"
 
-df_tercerosc = df_terceros.merge(df_tercerosne,
-                                 left_on='NumeroDocumento',
-                                 right_on='NumeroDocumento',
-                                 how='inner')
+# Credenciales de autenticación (Basic Auth)
+username = "INTEGRACION_ADR"
+password = "4Dr3s2024**.."
 
-nombre_archivo = f"{output_folder}/TercerosCargar.csv"
-df_tercerosc.astype(str).to_csv(nombre_archivo,
-                                index=False, encoding="utf-8", quoting=1)
+# Asegúrate de tener la función de generación del JSON
+json_data = json.dumps(json_resultado, ensure_ascii=False)
+# Convertir a string JSON
 
-df_tercerosne = df_tercerosne.merge(df_terceros,
-                                    left_on='NumeroDocumento',
-                                    right_on='NumeroDocumento',
-                                    how='left',
-                                    indicator=True)
-df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
+# Encabezados de la solicitud
+headers = {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
 
-# Eliminar la columna _merge si no la necesitas
-df_tercerosne = df_tercerosne.drop(columns=['_merge'])
-df_tercerosne = df_tercerosne[df_tercerosb.columns]
-nombre_archivo = f"{output_folder}/TercerosArmar.csv"
-df_tercerosne.astype(str).to_csv(nombre_archivo,
-                                 index=False, encoding="utf-8", quoting=1)
+# Enviar la solicitud POST
+response = requests.post(url, auth=(username, password),
+                         headers=headers, data=json_data)
+
+# Verificar respuesta del servidor
+if response.status_code == 200 or response.status_code == 201:
+    print("✅ Éxito:", response.json())  # Mostrar respuesta en JSON
+else:
+    # Mostrar error en caso de fallo
+    print("❌ Error:", response.status_code, response.text)
