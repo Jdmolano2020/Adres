@@ -3,6 +3,7 @@ import os
 import numpy as np
 import time
 from datetime import datetime
+import threading
 
 # Crear carpeta para guardar los archivos exportados
 output_folder = "archivos_terceros"
@@ -25,8 +26,6 @@ def Busca_conceptos(row, col_id_pago, col_concepto_pago):
     set_col_concepto_pago = set(col_concepto_pago_value.split('-'))
     matching_numbers = set_col_id_pago.intersection(set_col_concepto_pago)
     return '-'.join(matching_numbers)
-
-# Función para encontrar los números diferentes entre col7 y matching_numbers_grouped
 
 
 def find_different_numbers(row, col_concepto_pago, ConceptoPagoN):
@@ -75,42 +74,6 @@ def ordenar_numeros(conceptos):
         conceptos_unicos.add(concepto)
     return '-'.join(sorted(conceptos_unicos))  # Ordenarlos como números
 
-# Función para comparar dos columnas con listas de valores separados por guiones
-
-
-# def compare_columns(row):
-#     set_x = set(row['ConceptoPagoX'].split('-'))
-#     set_e = set(row['ConceptoPagoE'].split('-'))
-#     diff_x = set_x - set_e
-#     diff_e = set_e - set_x
-#     concepton = diff_x.union(diff_e)
-#     return pd.Series(['-'.join(concepton)]).str.strip()
-
-
-# Función genérica para comparar listas en cualquier par de columnas
-# def comparar_listas(row, col_id_pago, col_concepto_pago):
-#     # Convertir a string y manejar NaN reemplazándolos por una cadena vacía
-#     id_pago_str = str(row[col_id_pago]) if pd.notna(row[col_id_pago]) else ''
-#     concepto_pago_str = str(row[col_concepto_pago]) if pd.notna(
-#         row[col_concepto_pago]) else ''
-
-#     # Convertir en listas separadas por '-'
-#     id_pago_list = set(id_pago_str.split('-')) if id_pago_str else set()
-#     concepto_pago_list = concepto_pago_str.split(
-#         '-') if concepto_pago_str else []
-
-#     # Comparar listas
-#     concepto_existente = [
-#         cp for cp in concepto_pago_list if cp in id_pago_list]
-#     concepto_no_existente = [
-#         cp for cp in concepto_pago_list if cp not in id_pago_list]
-
-#     return pd.Series({
-#         'ConceptoPagoE': '-'.join(concepto_existente) if concepto_existente else '',
-#         'ConceptoPagoN': '-'.join(concepto_no_existente) if concepto_no_existente else ''
-#     })
-
-
 def buscarinformacionterceros(df_terceros, df_tercerosb):
 
     df_tercerosbc = df_tercerosb.copy()
@@ -150,6 +113,50 @@ def buscarcuentaterceros(df_tercerosb, df_cuentas):
         on=['NumeroDocumento', 'ConceptoPago'], how='left')
 
     return df_tercerocbe
+
+def captura_opcion_Unidad(default="TODOS"):
+    options = {
+        1: "TODOS",
+        2: "URA",
+        3: "UGG"
+    }
+    attempts = 0
+    max_attempts = 3
+    choice_made = threading.Event()
+    
+    def timer():
+        time.sleep(5)
+        if not choice_made.is_set():
+            print(f"\nTime's up! Defaulting to: {default}")
+            choice_made.set()
+    
+    timer_thread = threading.Thread(target=timer)
+    timer_thread.start()
+
+    while attempts < max_attempts and not choice_made.is_set():
+        print("Seleccione la Unidad de Negocio a Trabajar:")
+        for key, value in options.items():
+            print(f"{key}. {value}")
+        
+        try:
+            choice = int(input("digite el numero de su eleccion: "))
+            if choice in options:
+                choice_made.set()
+                return {"choice": choice, "text": options[choice]}
+            else:
+                print("Opcion invalida. Por favor seleccione una opcion valida.")
+        except ValueError:
+            print("Entrada Invalida. Digite un numero.")
+        
+        attempts += 1
+    
+    if not choice_made.is_set():
+        print(f"Ha selecionado una opcion invalida. se realizara : {default}")
+        return {"choice": 1, "text": default}
+
+# Get the user's choice
+Unidad_a_trabajar = captura_opcion_Unidad()
+print(f"Selecciono: {Unidad_a_trabajar}")
 
 
 df_informe = pd.DataFrame(
@@ -215,9 +222,11 @@ df_filtradon = df_filtradon.drop(columns=['ADRES OPERAC RECIPROCA', 'ID PAGO',
                                           'ConceptoPagoE', 'CIUDAD',
                                           'DEPARTAMENTO']).drop_duplicates()
 
-
-#df_filtradon['UNIDAD NEGOCIO']='URA'
-df_filtradon['UNIDAD NEGOCIO'] = df_filtradon['UNIDAD NEGOCIO'].replace([np.nan, '', None], 'URA')
+if Unidad_a_trabajar['text'] != "TODOS":
+    df_filtradon=df_filtradon[['UNIDAD NEGOCIO']==Unidad_a_trabajar['text']]
+    df_filtradon['UNIDAD NEGOCIO'] = df_filtradon['UNIDAD NEGOCIO'].replace([np.nan, '', None], Unidad_a_trabajar['text'])
+else:
+    df_filtradon['UNIDAD NEGOCIO'] = df_filtradon['UNIDAD NEGOCIO'].replace([np.nan, '', None], 'URA')    
 
 # Terceros existentes que no contienen el concepto se Consultan las cuentas
 df_tercerosc_cuentas = buscarcuentaterceros(df_filtradon[['ID PROVEEDOR', 'ConceptoPagoN']]
@@ -229,9 +238,10 @@ df_filtradon = df_filtradon.rename(columns={'UNIDAD NEGOCIO': 'UnidadNegocio', '
 
 df_filtradon = df_filtradon.merge(df_terceros, on=['NumeroDocumento', 'UnidadNegocio'],  how='left'
                                          ).drop_duplicates()
-#df_filtradon=df_filtradon.merge(df_terceros_v1[['NumeroDocumento','Departamento','Ciudad','Pais']], on='NumeroDocumento',  how='left').drop_duplicates()
 
-df_filtradon['rank'] = df_filtradon['ConceptoPago'].rank(method='dense', ascending=False)
+df_filtradon=df_filtradon[df_filtradon['ConceptoPago'].notna() & (df_filtradon['ConceptoPago'] != '')]
+
+df_filtradon['rank'] = df_filtradon.groupby('NumeroDocumento')['ConceptoPago'].rank(method='dense', ascending=False)
 
 df_informe = agregar_informe(
     df_filtradon, 'TercerosSinConcepto', 'NumeroDocumento', df_informe)
@@ -275,11 +285,11 @@ for concepto in conceptos:
     df_subset=df_subset[campos_tercero]   
 
     # Crear nombre de archivo seguro
-    nombre_archivo = f"{output_folder}/terceros_" + f"{concepto:.0f}".replace(' ', '_').replace('/', '_') + ".csv"
+    nombre_archivo = f"{output_folder}/terceros_e_" + f"{concepto:.0f}".replace(' ', '_').replace('/', '_') + ".csv"
 
     # Generar el informe y añadir las filas al DataFrame de informe inicial
     df_informe = agregar_informe(
-        df_subset, f"terceros_{concepto:.0f}", 'NumeroDocumento', df_informe)
+        df_subset, f"terceros_e_{concepto:.0f}", 'NumeroDocumento', df_informe)
 
     # Exportar a CSV
     df_subset.to_csv(nombre_archivo, index=False,
@@ -319,9 +329,6 @@ df_tercerosc = df_terceros.merge(df_tercerosne,
                                     right_on='NumeroDocumento',
                                     how='inner')
 
-# df_tercerosc = df_tercerosc.drop(
-#     columns=['NumeroCuenta', 'NombreBanco', 'TipoCuenta', 'R', 'ConceptoPago'])
-
 df_tercerosc_cuentas = buscarcuentaterceros(df_tercerosne, df_cuentas)
 
 df_tercerosc = df_tercerosc.merge(df_tercerosc_cuentas,
@@ -331,6 +338,10 @@ df_tercerosc = df_tercerosc.drop(columns=['ConceptoPagoX'])
 
 #crea df con los campos para contruir Json
 df_tercerosc=df_tercerosc[campos_tercero]  
+
+if Unidad_a_trabajar['text'] != "TODOS":
+    df_tercerosc=df_tercerosc[['UnidadNegocio']==Unidad_a_trabajar['text']]
+    df_tercerosc['UnidadNegocio'] = df_tercerosc['UnidadNegocio'].replace([np.nan, '', None], Unidad_a_trabajar['text'])
 
 df_informe = agregar_informe(
     df_tercerosc, 'TercerosCargar', 'NumeroDocumento', df_informe)
@@ -342,30 +353,41 @@ nombre_archivo = f"{output_folder}/TercerosCargar.csv"
 df_tercerosc.astype(str).to_csv(nombre_archivo,
                                 index=False, encoding="utf-8", quoting=1)
 
-# Generar el JSON con la función
-json_resultado = construir_json(df_tercerosc)
+df_tercerosc['rank'] = df_tercerosc.groupby('NumeroDocumento')['ConceptoPago'].rank(method='dense', ascending=False)
 
-# Guardar el JSON en un archivo
-with open(nombre_archivo.replace("csv","json"), "w", encoding="utf-8") as f:
-    json.dump(json_resultado, f, indent=4, ensure_ascii=False)
+archivos = df_tercerosc['rank'].unique()
+archivos = sorted([elemento for elemento in archivos if elemento])
+print(archivos)
+for archivo in archivos:
+    df_subset=df_filtradon[df_filtradon['rank']==archivo]
 
-print(f"El archivo JSON se ha guardado como TercerosCargar.json")
-#df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
+    df_subset['NombreBanco']=df_subset['CodigoBanco']
 
-# Eliminar la columna _merge si no la necesitas
-#df_tercerosne = df_tercerosne.drop(columns=['_merge'])
-df_tercerosne = df_tercerosne[df_tercerosb.columns]
+    # Generar el JSON con la función
+    json_resultado = construir_json(df_tercerosc)
+
+    # Guardar el JSON en un archivo
+    with open(nombre_archivo.replace(".csv",f"_c_{archivo:.0f}.json"), "w", encoding="utf-8") as f:
+        json.dump(json_resultado, f, indent=4, ensure_ascii=False)
+
+    print(f"El archivo JSON se ha guardado como terceros_c_{archivo:.0f}.json")
+
+    #Envio_integracion(json_resultado)
+
+print("Exportación Terceros a Cargar completada.")
+
+#df_tercerosne = df_terceros_control
 nombre_archivo = f"{output_folder}/TercerosArmar.csv"
-df_terceros_armar = buscarinformacionterceros(df_terceros, df_tercerosne)
-df_terceros_cuentas = buscarcuentaterceros(df_tercerosne, df_cuentas)
+df_terceros_armar = df_terceros.merge(df_terceros_control, on='NumeroDocumento', how='right')
+df_terceros_cuentas = buscarcuentaterceros(df_terceros_control, df_cuentas)
 
-df_terceros_armar = df_terceros_armar.merge(df_terceros_cuentas,
-                                            on=['NumeroDocumento', 'UnidadNegocio'], how='left')
+df_terceros_armar = df_terceros_armar.drop(columns=['UnidadNegocio']).merge(df_terceros_cuentas,
+                                            on='NumeroDocumento', how='left')
 
 df_terceros_armar.astype(str).to_csv(nombre_archivo,
                                      index=False, encoding="utf-8", quoting=1)
 df_informe = agregar_informe(
-    df_terceros_armar, 'TercerosArmar', 'ID PROVEEDOR', df_informe)
+    df_terceros_armar, 'TercerosArmar', 'NumeroDocumento', df_informe)
 
 print(df_informe)
 
