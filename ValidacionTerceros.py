@@ -190,12 +190,11 @@ df_tercerose['ConceptoPagoN'] = df_tercerose['ConceptoPagoN'] .apply(
 df_filtradoe = df_tercerose[df_tercerose['ConceptoPagoE'].notna() & (
     df_tercerose['ConceptoPagoE'] != '') & (
     df_tercerose['ConceptoPagoE'] != 'nan')]
-# df_filtradoe['ConceptoPagoE'] = df_filtradoe.groupby('ID PROVEEDOR')['ConceptoPagoE'].transform(lambda x: '-'.join(sorted(set(x))))
-# df_filtradoe['ConceptoPagoE']=df_filtradoe['ConceptoPagoT'].apply(ordenar_numeros)  # columna innecesarea
 
-# df_filtradoe.to_excel("df_filtradoe.xlsx")
+nombre_archivo = f"{output_folder}/TercerosExistentes.csv"
+df_filtradoe.astype(str).to_csv(nombre_archivo,
+                                index=False, encoding="utf-8", quoting=1)
 
-# df_filtradoe.drop ('ConceptoPagoT', axis = 1)
 
 df_terceros_control= df_terceros_control.merge(df_tercerose[['ID PROVEEDOR']], left_on='NumeroDocumento', right_on='ID PROVEEDOR', how='left', indicator=True)
 df_terceros_control=df_terceros_control[df_terceros_control['_merge'] == 'left_only'].drop(columns=['_merge','ID PROVEEDOR'])
@@ -203,17 +202,7 @@ df_terceros_control=df_terceros_control[df_terceros_control['_merge'] == 'left_o
 df_informe = agregar_informe(
     df_tercerose, 'TercerosExistentes', 'ID PROVEEDOR', df_informe)
 
-
-# df_test=df_test.drop_duplicates()
-# df_test=df_test.merge(df_ADR_Supplier, left_on='NumeroDocumento', right_on='Supplier Number',  how='inner')
-# df_test=df_test[['TIPO DOCUMENTO','NumeroDocumento','Supplier Type',
-#                  'Nombre','Segundo Nombre','Apellido','Segundo Apellido',
-#                  #'NOMBRE DIRECCION','DIRECCION1','UNIDAD NEGOCIO',
-#                  'NumeroCuenta',
-#                  'CodigoBanco','NombreBanco','TipoCuenta','UnidadNegocio',
-#                  'ConceptoPago']]
-# df_test=df_test.merge(df_Address[['Supplier Number','ID TIPO DE DOCUMENTO','Address Line 1']], left_on='NumeroDocumento', right_on='Supplier Number',  how='inner')
-# df_filtradon=df_filtradon.assign(ConceptoPagoN=df_filtradon['ConceptoPagoN'].str.split('-')).explode('ConceptoPagoN')
+#
 df_filtradon = df_tercerose[df_tercerose['ConceptoPagoN'].notna() & (
     df_tercerose['ConceptoPagoN'] != '') & (
     df_tercerose['ConceptoPagoN'] != 'nan') & (
@@ -226,15 +215,20 @@ df_filtradon = df_filtradon.drop(columns=['ADRES OPERAC RECIPROCA', 'ID PAGO',
                                           'ConceptoPagoE', 'CIUDAD',
                                           'DEPARTAMENTO']).drop_duplicates()
 
+
 #df_filtradon['UNIDAD NEGOCIO']='URA'
+df_filtradon['UNIDAD NEGOCIO'] = df_filtradon['UNIDAD NEGOCIO'].replace([np.nan, '', None], 'URA')
+
 # Terceros existentes que no contienen el concepto se Consultan las cuentas
 df_tercerosc_cuentas = buscarcuentaterceros(df_filtradon[['ID PROVEEDOR', 'ConceptoPagoN']]
                                             .rename(columns={'ID PROVEEDOR': 'NumeroDocumento', 'ConceptoPagoN': 'ConceptoPagoX'}), df_cuentas).drop_duplicates()
 
-df_filtradon = df_filtradon.rename(columns={'UNIDAD NEGOCIO': 'UnidadNegocio', 'ID PROVEEDOR': 'NumeroDocumento'}).merge(df_tercerosc_cuentas,
-                                                                                                                         on=['NumeroDocumento', 'UnidadNegocio'], how='left')
+df_filtradon = df_filtradon.rename(columns={'UNIDAD NEGOCIO': 'UnidadNegocio', 'ID PROVEEDOR': 'NumeroDocumento'}
+                                   ).merge(df_tercerosc_cuentas, on=['NumeroDocumento', 'UnidadNegocio'], how='left'
+                                           ).drop_duplicates()
 
-df_filtradon = df_filtradon.merge(df_terceros, on='NumeroDocumento',  how='left').drop_duplicates()
+df_filtradon = df_filtradon.merge(df_terceros, on=['NumeroDocumento', 'UnidadNegocio'],  how='left'
+                                         ).drop_duplicates()
 #df_filtradon=df_filtradon.merge(df_terceros_v1[['NumeroDocumento','Departamento','Ciudad','Pais']], on='NumeroDocumento',  how='left').drop_duplicates()
 
 df_filtradon['rank'] = df_filtradon['ConceptoPago'].rank(method='dense', ascending=False)
@@ -245,9 +239,7 @@ df_informe = agregar_informe(
 df_terceros_control= df_terceros_control.merge(df_filtradon[['NumeroDocumento']], left_on='NumeroDocumento', right_on='NumeroDocumento', how='left', indicator=True)
 df_terceros_control=df_terceros_control[df_terceros_control['_merge'] == 'left_only'].drop(columns=['_merge'])
 
-#for para gerenar archivo Json por grupos
-
-campos_terceso = ['Nombre',
+campos_tercero = ['Nombre',
                   'TipoDocumento',
                   'NumeroDocumento',
                   'Email',
@@ -257,42 +249,54 @@ campos_terceso = ['Nombre',
                   'SegundoNombre',
                   'PrimerApellido',
                   'SegundoApellido',
+                  'UnidadNegocio',
                   'Actividad Economica',
                   'TipoContribuyente',
-                  'UnidadNegocio',
                   'Direccion',
                   'Departamento',
                   'Ciudad',
-                  'Pais']
+                  'Pais',
+                  'NumeroCuenta',
+                  'NombreBanco',
+                  'TipoCuenta',
+                  'ConceptoPago'
+                  ]
 
+#for para gerenar archivo Json por grupos
 conceptos = df_filtradon['rank'].unique()
 conceptos = sorted([elemento for elemento in conceptos if elemento])
 print(conceptos)
 for concepto in conceptos:
     df_subset=df_filtradon[df_filtradon['rank']==concepto]
 
-    df_subset=df_subset
-    # df_subset = df_exploded[df_exploded['ConceptoPagoN']
-    #                         == concepto].drop_duplicates(subset=['ID PROVEEDOR'])
+    df_subset['NombreBanco']=df_subset['CodigoBanco']
+
+    #crea df con los campos para contruir Json
+    df_subset=df_subset[campos_tercero]   
 
     # Crear nombre de archivo seguro
-
     nombre_archivo = f"{output_folder}/terceros_" + f"{concepto:.0f}".replace(' ', '_').replace('/', '_') + ".csv"
+
     # Generar el informe y añadir las filas al DataFrame de informe inicial
     df_informe = agregar_informe(
-        df_subset, f"terceros_{concepto:.0f}", 'ID PROVEEDOR', df_informe)
+        df_subset, f"terceros_{concepto:.0f}", 'NumeroDocumento', df_informe)
 
     # Exportar a CSV
     df_subset.to_csv(nombre_archivo, index=False,
                      encoding='utf-8-sig', quoting=1)
+    
+    # Generar el JSON con la función
+    json_resultado = construir_json(df_subset)
 
+    # Guardar el JSON en un archivo
+    with open(nombre_archivo.replace("csv","json"), "w", encoding="utf-8") as f:
+        json.dump(json_resultado, f, indent=4, ensure_ascii=False)
 
-print("Exportación Terceros Existentes completada.")
+    print(f"El archivo JSON se ha guardado como terceros_{concepto:.0f}.json")
 
-nombre_archivo = f"{output_folder}/TercerosExistentes.csv"
-df_filtradoe.astype(str).to_csv(nombre_archivo,
-                                index=False, encoding="utf-8", quoting=1)
+    #Envio_integracion(json_resultado)
 
+print("Exportación Terceros Existentes sin concepto completada.")
 
 df_tercerosne = df_tercerosb[['NumeroDocumento','ConceptoPagoX']].merge(df_tercerosparal[['ID PROVEEDOR']],
                                    left_on='NumeroDocumento',
@@ -310,13 +314,13 @@ df_tercerosne = df_tercerosne[df_tercerosb.columns]
 df_informe = agregar_informe(
     df_tercerosne, 'TercerosNoEncontrados', 'NumeroDocumento', df_informe)
 
-df_tercerosc = df_terceros_v1.merge(df_tercerosne,
+df_tercerosc = df_terceros.merge(df_tercerosne,
                                     left_on='NumeroDocumento',
                                     right_on='NumeroDocumento',
                                     how='inner')
 
-df_tercerosc = df_tercerosc.drop(
-    columns=['NumeroCuenta', 'NombreBanco', 'TipoCuenta', 'R', 'ConceptoPago'])
+# df_tercerosc = df_tercerosc.drop(
+#     columns=['NumeroCuenta', 'NombreBanco', 'TipoCuenta', 'R', 'ConceptoPago'])
 
 df_tercerosc_cuentas = buscarcuentaterceros(df_tercerosne, df_cuentas)
 
@@ -325,9 +329,8 @@ df_tercerosc = df_tercerosc.merge(df_tercerosc_cuentas,
 
 df_tercerosc = df_tercerosc.drop(columns=['ConceptoPagoX'])
 
-nombre_archivo = f"{output_folder}/TercerosCargar.csv"
-df_tercerosc.astype(str).to_csv(nombre_archivo,
-                                index=False, encoding="utf-8", quoting=1)
+#crea df con los campos para contruir Json
+df_tercerosc=df_tercerosc[campos_tercero]  
 
 df_informe = agregar_informe(
     df_tercerosc, 'TercerosCargar', 'NumeroDocumento', df_informe)
@@ -335,6 +338,18 @@ df_informe = agregar_informe(
 df_terceros_control= df_terceros_control.merge(df_tercerosc[['NumeroDocumento']], left_on='NumeroDocumento', right_on='NumeroDocumento', how='left', indicator=True)
 df_terceros_control=df_terceros_control[df_terceros_control['_merge'] == 'left_only'].drop(columns=['_merge'])
 
+nombre_archivo = f"{output_folder}/TercerosCargar.csv"
+df_tercerosc.astype(str).to_csv(nombre_archivo,
+                                index=False, encoding="utf-8", quoting=1)
+
+# Generar el JSON con la función
+json_resultado = construir_json(df_tercerosc)
+
+# Guardar el JSON en un archivo
+with open(nombre_archivo.replace("csv","json"), "w", encoding="utf-8") as f:
+    json.dump(json_resultado, f, indent=4, ensure_ascii=False)
+
+print(f"El archivo JSON se ha guardado como TercerosCargar.json")
 #df_tercerosne = df_tercerosne[df_tercerosne['_merge'] == 'left_only']
 
 # Eliminar la columna _merge si no la necesitas
@@ -344,26 +359,26 @@ nombre_archivo = f"{output_folder}/TercerosArmar.csv"
 df_terceros_armar = buscarinformacionterceros(df_terceros, df_tercerosne)
 df_terceros_cuentas = buscarcuentaterceros(df_tercerosne, df_cuentas)
 
-# df_terceros_armar = df_terceros_armar.merge(df_terceros_cuentas,
-#                                             on=['NumeroDocumento', 'UnidadNegocio'], how='left')
+df_terceros_armar = df_terceros_armar.merge(df_terceros_cuentas,
+                                            on=['NumeroDocumento', 'UnidadNegocio'], how='left')
 
-# df_terceros_armar.astype(str).to_csv(nombre_archivo,
-#                                      index=False, encoding="utf-8", quoting=1)
-# df_informe = agregar_informe(
-#     df_terceros_armar, 'TercerosArmar', 'ID PROVEEDOR', df_informe)
+df_terceros_armar.astype(str).to_csv(nombre_archivo,
+                                     index=False, encoding="utf-8", quoting=1)
+df_informe = agregar_informe(
+    df_terceros_armar, 'TercerosArmar', 'ID PROVEEDOR', df_informe)
 
-# print(df_informe)
+print(df_informe)
 
-# # captura hora de finalizacion
-# end_time = time.time()
-# print(f"fin: ", {datetime.fromtimestamp(
-#     end_time).strftime('%Y-%m-%d %H:%M:%S')})
+# captura hora de finalizacion
+end_time = time.time()
 
-# # Calcular el tiempo total de ejecución
-# tiempo_total = end_time - start_time
-# print(f"Tiempo total de ejecución: {tiempo_total:.2f} segundos",
-#       segundos_a_segundos_minutos_y_horas(int(round(tiempo_total, 0))))
+df_informe.to_excel(f"{output_folder}\Informe_{datetime.fromtimestamp(end_time).strftime('%d%m%Y_%H_%M')}.xlsx", index=False)
 
-# nombre_archivo = f"{output_folder}/TercerosNoExistentes.csv"
-# df_exploded.astype(str).to_csv(nombre_archivo,
-#                                index=False, encoding="utf-8", quoting=1)
+print(f"fin: ", {datetime.fromtimestamp(
+    end_time).strftime('%Y-%m-%d %H:%M:%S')})
+
+# Calcular el tiempo total de ejecución
+tiempo_total = end_time - start_time
+print(f"Tiempo total de ejecución: {tiempo_total:.2f} segundos",
+      segundos_a_segundos_minutos_y_horas(int(round(tiempo_total, 0))))
+
