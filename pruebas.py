@@ -75,30 +75,32 @@ json_resultado = construir_json(df_tercerosmaecb)
 with open("datos_terceros.json", "w", encoding="utf-8") as f:
     json.dump(json_resultado, f, indent=4, ensure_ascii=False)
 
-# URL del servicio
-url = "https://desarrrollo-adr-axstgrwlxen2-px.integration.us-phoenix-1.ocp.oraclecloud.com/ic/api/integration/v1/flows/rest/ADR_CREARACTUA_TERCERO/1.0/data"
+def Envio_integracion(dev=2, json_resultado={"DATA": []}):
+    # URL del servicio
+    url = "https://desarrrollo-adr-axstgrwlxen2-px.integration.us-phoenix-1.ocp.oraclecloud.com/ic/api/integration/v1/flows/rest/ADR_CREARACTUA_TERCERO/1.0/data"
 
-# Credenciales de autenticación (Basic Auth)
-username = "INTEGRACION_ADR"
-password = "4Dr3s2024**.."
+    # Credenciales de autenticación (Basic Auth)
+    username = "INTEGRACION_ADR"
+    password = "4Dr3s2024**.."
 
-# Asegúrate de tener la función de generación del JSON
-json_data = json.dumps(json_resultado, ensure_ascii=False)
-# Convertir a string JSON
+    # Asegúrate de tener la función de generación del JSON
+    json_data = json.dumps(json_resultado, ensure_ascii=False)
+    # Convertir a string JSON
 
-# Encabezados de la solicitud
-headers = {
-    "Content-Type": "application/json",
-    "Accept": "application/json"
-}
+    # Encabezados de la solicitud
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
 
-# Enviar la solicitud POST
-response = requests.post(url, auth=(username, password),
-                         headers=headers, data=json_data)
+    # Enviar la solicitud POST
+    response = requests.post(url, auth=(username, password),
+                            headers=headers, data=json_data)
 
-# Verificar respuesta del servidor
-if response.status_code == 200 or response.status_code == 201:
-    print("✅ Éxito:", response.json())  # Mostrar respuesta en JSON
-else:
-    # Mostrar error en caso de fallo
-    print("❌ Error:", response.status_code, response.text)
+    # Verificar respuesta del servidor
+    if response.status_code == 200 or response.status_code == 201:
+        return print("✅ Éxito:", response.json())  # Mostrar respuesta en JSON
+    else:
+        # Mostrar error en caso de fallo
+        return print("❌ Error:", response.status_code, response.text)
+
