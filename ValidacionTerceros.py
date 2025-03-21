@@ -1,3 +1,6 @@
+""" Ejecucion para la validacion de los terceros
+
+"""
 import pandas as pd
 import os
 import numpy as np
@@ -174,6 +177,7 @@ df_tercerosb = df_tercerosb.groupby('NumeroDocumento')['ConceptoPagoX'].apply(
 df_tercerosb['ConceptoPagoX'] = df_tercerosb['ConceptoPagoX'].apply(
     ordenar_numeros)
 
+# 1. Encontrar aquellos terceros que existen en la base de Oracle creados
 df_tercerose = df_tercerosparal.merge(df_tercerosb,
                                       left_on='ID PROVEEDOR',
                                       right_on='NumeroDocumento',
@@ -223,10 +227,12 @@ df_filtradon = df_filtradon.drop(columns=['ADRES OPERAC RECIPROCA', 'ID PAGO',
                                           'DEPARTAMENTO']).drop_duplicates()
 
 if Unidad_a_trabajar['text'] != "TODOS":
-    df_filtradon=df_filtradon[['UNIDAD NEGOCIO']==Unidad_a_trabajar['text']]
     df_filtradon['UNIDAD NEGOCIO'] = df_filtradon['UNIDAD NEGOCIO'].replace([np.nan, '', None], Unidad_a_trabajar['text'])
+    df_filtradon=df_filtradon[df_filtradon['UNIDAD NEGOCIO']==Unidad_a_trabajar['text']]
 else:
     df_filtradon['UNIDAD NEGOCIO'] = df_filtradon['UNIDAD NEGOCIO'].replace([np.nan, '', None], 'URA')    
+
+print(f"estamos trabajando {df_filtradon.shape[0]} registros Existentes sin concepto")
 
 # Terceros existentes que no contienen el concepto se Consultan las cuentas
 df_tercerosc_cuentas = buscarcuentaterceros(df_filtradon[['ID PROVEEDOR', 'ConceptoPagoN']]
@@ -340,8 +346,10 @@ df_tercerosc = df_tercerosc.drop(columns=['ConceptoPagoX'])
 df_tercerosc=df_tercerosc[campos_tercero]  
 
 if Unidad_a_trabajar['text'] != "TODOS":
-    df_tercerosc=df_tercerosc[['UnidadNegocio']==Unidad_a_trabajar['text']]
     df_tercerosc['UnidadNegocio'] = df_tercerosc['UnidadNegocio'].replace([np.nan, '', None], Unidad_a_trabajar['text'])
+    df_tercerosc=df_tercerosc[df_tercerosc['UnidadNegocio']==Unidad_a_trabajar['text']]
+
+print(f"estamos trabajando {df_tercerosc.shape[0]} registros a Cargar")
 
 df_informe = agregar_informe(
     df_tercerosc, 'TercerosCargar', 'NumeroDocumento', df_informe)
@@ -376,7 +384,7 @@ for archivo in archivos:
 
 print("Exportación Terceros a Cargar completada.")
 
-#df_tercerosne = df_terceros_control
+
 nombre_archivo = f"{output_folder}/TercerosArmar.csv"
 df_terceros_armar = df_terceros.merge(df_terceros_control, on='NumeroDocumento', how='right')
 df_terceros_cuentas = buscarcuentaterceros(df_terceros_control, df_cuentas)
