@@ -193,8 +193,11 @@ df_tercerose['ConceptoPagoE'] = df_tercerose.apply(
     Busca_conceptos, axis=1, col_id_pago="ID PAGO", col_concepto_pago="ConceptoPagoX")
 df_tercerose['ConceptoPagoE'] = df_tercerose.groupby('ID PROVEEDOR')[
     'ConceptoPagoE'].transform(lambda x: '-'.join(sorted(set(filter(None, x)))))
-df_tercerose['ConceptoPagoN'] = df_tercerose.apply(
-    find_different_numbers, axis=1, col_concepto_pago="ConceptoPagoX", ConceptoPagoN='ConceptoPagoE')
+if df_tercerose.shape[0] == 0 :
+    df_tercerose['ConceptoPagoN'] = "" 
+else:
+    df_tercerose['ConceptoPagoN'] =df_tercerose.apply(
+        find_different_numbers, axis=1, col_concepto_pago="ConceptoPagoX", ConceptoPagoN='ConceptoPagoE')
 df_tercerose['ConceptoPagoN'] = df_tercerose['ConceptoPagoN'] .apply(
     lambda x: x.lstrip('-'))
 
@@ -219,7 +222,7 @@ df_filtradon = df_tercerose[df_tercerose['ConceptoPagoN'].notna() & (
     df_tercerose['ConceptoPagoN'] != 'nan') & (
     df_tercerose['ConceptoPagoN'].str.len() > 0)]
 
-df_filtradon = df_filtradon.drop(columns=['ADRES OPERAC RECIPROCA', 'ID PAGO',
+df_filtradon = df_tercerose.drop(columns=['ADRES OPERAC RECIPROCA', 'ID PAGO',
                                           'CUENTA BANCARIA', 'TIPO CUENTA',
                                           'UBICACION ENVIO', 'BANCO',
                                           'CODIGO BANCO', 'ConceptoPagoX',
@@ -310,7 +313,7 @@ for concepto in conceptos:
 
     print(f"El archivo JSON se ha guardado como terceros_{concepto:.0f}.json")
 
-    #Envio_integracion(json_resultado)
+    Envio_integracion(json_resultado)
 
 print("Exportación Terceros Existentes sin concepto completada.")
 
@@ -372,7 +375,7 @@ for archivo in archivos:
     df_subset['NombreBanco']=df_subset['CodigoBanco']
 
     # Generar el JSON con la función
-    json_resultado = construir_json(df_tercerosc)
+    json_resultado = construir_json(df_subset)
 
     # Guardar el JSON en un archivo
     with open(nombre_archivo.replace(".csv",f"_c_{archivo:.0f}.json"), "w", encoding="utf-8") as f:
@@ -380,7 +383,7 @@ for archivo in archivos:
 
     print(f"El archivo JSON se ha guardado como terceros_c_{archivo:.0f}.json")
 
-    #Envio_integracion(json_resultado)
+    Envio_integracion(json_resultado)
 
 print("Exportación Terceros a Cargar completada.")
 
