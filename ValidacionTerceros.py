@@ -193,11 +193,10 @@ df_tercerose['ConceptoPagoE'] = df_tercerose.apply(
     Busca_conceptos, axis=1, col_id_pago="ID PAGO", col_concepto_pago="ConceptoPagoX")
 df_tercerose['ConceptoPagoE'] = df_tercerose.groupby('ID PROVEEDOR')[
     'ConceptoPagoE'].transform(lambda x: '-'.join(sorted(set(filter(None, x)))))
-if df_tercerose.shape[0] == 0 :
-    df_tercerose['ConceptoPagoN'] = "" 
-else:
-    df_tercerose['ConceptoPagoN'] =df_tercerose.apply(
+if df_tercerose.shape[0]>0:
+    df_tercerose['ConceptoPagoN'] = df_tercerose.apply(
         find_different_numbers, axis=1, col_concepto_pago="ConceptoPagoX", ConceptoPagoN='ConceptoPagoE')
+else: df_tercerose['ConceptoPagoN'] =''
 df_tercerose['ConceptoPagoN'] = df_tercerose['ConceptoPagoN'] .apply(
     lambda x: x.lstrip('-'))
 
@@ -222,7 +221,7 @@ df_filtradon = df_tercerose[df_tercerose['ConceptoPagoN'].notna() & (
     df_tercerose['ConceptoPagoN'] != 'nan') & (
     df_tercerose['ConceptoPagoN'].str.len() > 0)]
 
-df_filtradon = df_tercerose.drop(columns=['ADRES OPERAC RECIPROCA', 'ID PAGO',
+df_filtradon = df_filtradon.drop(columns=['ADRES OPERAC RECIPROCA', 'ID PAGO',
                                           'CUENTA BANCARIA', 'TIPO CUENTA',
                                           'UBICACION ENVIO', 'BANCO',
                                           'CODIGO BANCO', 'ConceptoPagoX',
@@ -313,7 +312,7 @@ for concepto in conceptos:
 
     print(f"El archivo JSON se ha guardado como terceros_{concepto:.0f}.json")
 
-    Envio_integracion(json_resultado)
+    #df_tercerosne(json_resultado=json_resultado)
 
 print("Exportación Terceros Existentes sin concepto completada.")
 
@@ -346,7 +345,7 @@ df_tercerosc = df_tercerosc.merge(df_tercerosc_cuentas,
 df_tercerosc = df_tercerosc.drop(columns=['ConceptoPagoX'])
 
 #crea df con los campos para contruir Json
-df_tercerosc=df_tercerosc[campos_tercero]  
+#df_tercerosc=df_tercerosc[campos_tercero]  
 
 if Unidad_a_trabajar['text'] != "TODOS":
     df_tercerosc['UnidadNegocio'] = df_tercerosc['UnidadNegocio'].replace([np.nan, '', None], Unidad_a_trabajar['text'])
@@ -370,10 +369,12 @@ archivos = df_tercerosc['rank'].unique()
 archivos = sorted([elemento for elemento in archivos if elemento])
 print(archivos)
 for archivo in archivos:
-    df_subset=df_filtradon[df_filtradon['rank']==archivo]
+    df_subset=df_tercerosc[df_tercerosc['rank']==archivo]
 
     df_subset['NombreBanco']=df_subset['CodigoBanco']
 
+    df_subset=df_subset[campos_tercero]   
+    
     # Generar el JSON con la función
     json_resultado = construir_json(df_subset)
 
@@ -383,7 +384,7 @@ for archivo in archivos:
 
     print(f"El archivo JSON se ha guardado como terceros_c_{archivo:.0f}.json")
 
-    Envio_integracion(json_resultado)
+    #df_tercerosne(json_resultado=json_resultado)
 
 print("Exportación Terceros a Cargar completada.")
 
@@ -414,4 +415,3 @@ print(f"fin: ", {datetime.fromtimestamp(
 tiempo_total = end_time - start_time
 print(f"Tiempo total de ejecución: {tiempo_total:.2f} segundos",
       segundos_a_segundos_minutos_y_horas(int(round(tiempo_total, 0))))
-
