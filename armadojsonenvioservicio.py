@@ -1,14 +1,39 @@
 import pandas as pd
 import json
 import requests
+import datetime
+
+
+TAMANO_LOTE = 100
+
+
+# Función para buscar cuentas de terceros
+def buscarcuentaterceros(df_tercerosb, df_cuentas):
+
+    df_tercerosbc = df_tercerosb[['NumeroDocumento', 'UnidadNegocio']].copy()
+    df_tercerocb = df_cuentas.copy()
+
+    df_tercerocbe = df_tercerosbc.merge(df_tercerocb,
+                                        on=['NumeroDocumento',
+                                            'UnidadNegocio'], how='inner')
+    df_tercerocbe.drop(columns=['NombreBanco'], inplace=True)
+    df_tercerocbe.rename(
+        columns={'CodigoBanco': 'NombreBanco'}, inplace=True)
+    df_tercerocbe = df_tercerocbe.groupby(['NumeroDocumento', 'NumeroCuenta',
+                                           'NombreBanco', 'TipoCuenta',
+                                           'UnidadNegocio'],
+                                          as_index=False) \
+        .agg({'ConceptoPago': lambda x: '-'.join(x.unique())})
+    return df_tercerocbe
+
 
 # Función para construir el JSON
-
-
 def envio_integracion(dev=2, json_resultado={"DATA": []}):
     # URL del servicio
-    # url = "https://desarrrollo-adr-axstgrwlxen2-px.integration.us-phoenix-1.ocp.oraclecloud.com/ic/api/integration/v1/flows/rest/ADR_CREARACTUA_TERCERO/1.0/data"
-    url = "https://desarrollo2-adr-axstgrwlxen2-px.integration.us-phoenix-1.ocp.oraclecloud.com/ic/api/integration/v1/flows/rest/ADR_CREARACTUA_TERCERO/1.0/data"
+    if dev == 1:
+        url = "https://desarrrollo-adr-axstgrwlxen2-px.integration.us-phoenix-1.ocp.oraclecloud.com/ic/api/integration/v1/flows/rest/ADR_CREARACTUA_TERCERO/1.0/data"
+    if dev == 2:
+        url = "https://desarrollo2-adr-axstgrwlxen2-px.integration.us-phoenix-1.ocp.oraclecloud.com/ic/api/integration/v1/flows/rest/ADR_CREARACTUA_TERCERO/1.0/data"
     # Credenciales de autenticación (Basic Auth)
     username = "INTEGRACION_ADR"
     password = "4Dr3s2024**.."
@@ -87,37 +112,57 @@ def construir_json(df):
     return resultado
 
 
-# Generar el JSON con la función
-# nombre_archivo = "Tercerosdobles.csv"
-# df_duplicados.astype(str).to_csv(nombre_archivo,
-#                                  index=False, encoding="utf-8", quoting=1)
+def enviar_lote(envio=1, lista=None):
+    """Envía un lote de registros no enviados al servicio."""
+    global df_tercerosma
 
-columnas_terceros = ['Nombre', 'TipoDocumento', 'NumeroDocumento',
-                     'Email', 'Naturaleza', 'TipoProveedor',
-                     'PrimerNombre', 'SegundoNombre',
-                     'PrimerApellido', 'SegundoApellido',
-                     'Actividad Economica', 'TipoContribuyente',
-                     'UnidadNegocio', 'Direccion',
-                     'Departamento', 'Ciudad', 'Pais']
-df_tercerosmae = df_duplicados[columnas_terceros].copy()
+    if "Enviado" not in df_tercerosma.columns:
+        df_tercerosma["Enviado"] = False
 
-# Lista de números a filtrar
-lista_numeros = ['830006777', '830037248']
-df_tercerosmae = df_tercerosmae[df_tercerosmae['NumeroDocumento'].isin(
-    lista_numeros)]
+    if envio == 2:
+        df_lote = df_tercerosma[df_tercerosma['NumeroDocumento'].isin(lista)]
+    else:
+        # Filtrar registros no enviados
+        df_lote = df_tercerosma[df_tercerosma['Enviado']
+                                == False].head(TAMANO_LOTE)
 
-df_tercerosmaecb = df_tercerosmae.merge(df_cuentas,
-                                        on=['NumeroDocumento',
-                                            'UnidadNegocio'], how='left')
-df_tercerosmaecb.drop(columns=['NombreBanco'], inplace=True)
-df_tercerosmaecb.rename(columns={'CodigoBanco': 'NombreBanco'}, inplace=True)
+    df_cuentase = buscarcuentaterceros(df_lote, df_cuentas)
+
+    df_terceroscb = df_lote.merge(df_cuentase,
+                                  on=['NumeroDocumento',
+                                      'UnidadNegocio'], how='left')
+
+    if df_lote.empty:
+        print("✅ No hay registros pendientes de envío.")
+        return
+
+    # Convertir a JSON en el formato esperado
+    data_json = construir_json(df=df_terceroscb)
+
+    try:
+        nombre_archivo = f"datos_terceros_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(nombre_archivo, "w", encoding="utf-8") as f:
+            json.dump(data_json, f, indent=4, ensure_ascii=False)
+        # Enviar al servicio
+        # envio_integracion(dev=2, json_resultado=data_json)
+        # Marcar registros como enviados
+        df_tercerosma.loc[df_lote.index, 'Enviado'] = True
+        revisionenvio = df_tercerosma['Enviado'].value_counts()
+        print(revisionenvio)
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Error en la conexión: {e}")
 
 
-# Generar el JSON con la función
-json_resultado = construir_json(df_tercerosmaecb)
+if __name__ == "__main__":
+    columnas_terceros = ['Nombre', 'TipoDocumento', 'NumeroDocumento',
+                         'Email', 'Naturaleza', 'TipoProveedor',
+                         'PrimerNombre', 'SegundoNombre',
+                         'PrimerApellido', 'SegundoApellido',
+                         'Actividad Economica', 'TipoContribuyente',
+                         'UnidadNegocio', 'Direccion',
+                         'Departamento', 'Ciudad', 'Pais']
 
-# Guardar en un archivo
-with open("datos_terceros.json", "w", encoding="utf-8") as f:
-    json.dump(json_resultado, f, indent=4, ensure_ascii=False)
+    df_tercerosma = df_terceros[columnas_terceros].copy()
 
-envio_integracion(1, json_resultado)
+    lista_numeros = ['830006777', '830037248']
+    enviar_lote(envio=1, lista=lista_numeros)
