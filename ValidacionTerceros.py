@@ -247,8 +247,7 @@ df_filtradon = df_filtradon.rename(columns={'UNIDAD NEGOCIO': 'UnidadNegocio', '
 df_filtradon = df_filtradon.merge(df_terceros, on=['NumeroDocumento', 'UnidadNegocio'],  how='left'
                                          ).drop_duplicates()
 
-df_filtradon=df_filtradon[df_filtradon['ConceptoPago'].notna() & (df_filtradon['ConceptoPago'] != '')]
-
+df_filtradon=df_filtradon[df_filtradon['ConceptoPago'].notna() & (df_filtradon['ConceptoPago'] != '') & df_filtradon['COD TIPO DOCUMENTO'].notna() & (df_filtradon['COD TIPO DOCUMENTO'] != '')]
 df_filtradon['rank'] = df_filtradon.groupby('NumeroDocumento')['ConceptoPago'].rank(method='dense', ascending=False)
 
 df_informe = agregar_informe(
@@ -285,12 +284,12 @@ conceptos = df_filtradon['rank'].unique()
 conceptos = sorted([elemento for elemento in conceptos if elemento])
 print(conceptos)
 for concepto in conceptos:
-    df_subset=df_filtradon[df_filtradon['rank']==concepto]
+    df_subset=df_filtradon[df_filtradon['rank']==concepto].drop_duplicates() 
 
     df_subset['NombreBanco']=df_subset['CodigoBanco']
 
     #crea df con los campos para contruir Json
-    df_subset=df_subset[campos_tercero]   
+    df_subset=df_subset[campos_tercero].drop_duplicates() 
 
     # Crear nombre de archivo seguro
     nombre_archivo = f"{output_folder}/terceros_e_" + f"{concepto:.0f}".replace(' ', '_').replace('/', '_') + ".csv"
@@ -312,7 +311,7 @@ for concepto in conceptos:
 
     print(f"El archivo JSON se ha guardado como terceros_{concepto:.0f}.json")
 
-    #df_tercerosne(json_resultado=json_resultado)
+    #envio_integracion(json_resultado=json_resultado)
 
 print("Exportación Terceros Existentes sin concepto completada.")
 
@@ -369,11 +368,11 @@ archivos = df_tercerosc['rank'].unique()
 archivos = sorted([elemento for elemento in archivos if elemento])
 print(archivos)
 for archivo in archivos:
-    df_subset=df_tercerosc[df_tercerosc['rank']==archivo]
+    df_subset=df_tercerosc[df_tercerosc['rank']==archivo].drop_duplicates() 
 
     df_subset['NombreBanco']=df_subset['CodigoBanco']
 
-    df_subset=df_subset[campos_tercero]   
+    df_subset=df_subset[campos_tercero].drop_duplicates() 
     
     # Generar el JSON con la función
     json_resultado = construir_json(df_subset)
@@ -384,7 +383,7 @@ for archivo in archivos:
 
     print(f"El archivo JSON se ha guardado como terceros_c_{archivo:.0f}.json")
 
-    #df_tercerosne(json_resultado=json_resultado)
+    #envio_integracion(json_resultado=json_resultado)
 
 print("Exportación Terceros a Cargar completada.")
 
